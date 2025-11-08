@@ -420,9 +420,9 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Revenue</span>
-            <DollarSign className="w-4 h-4 text-green-500" />
+            <DollarSign className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-bold text-green-600">${(project.revenue || 0).toLocaleString()}</p>
+          <p className="text-2xl font-bold text-blue-600">${(project.revenue || 0).toLocaleString()}</p>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
@@ -434,9 +434,9 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Profit</span>
-            <TrendingUp className="w-4 h-4 text-blue-500" />
+            <TrendingUp className="w-4 h-4 text-green-500" />
           </div>
-          <p className={`text-2xl font-bold ${project.profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+          <p className={`text-2xl font-bold ${project.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ${(project.profit || 0).toLocaleString()}
           </p>
         </div>
