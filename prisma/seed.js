@@ -6,6 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log(" Starting seed...");
 
+  if (!prisma.role) {
+    throw new Error("Prisma client model 'role' is not defined. Please ensure your schema.prisma is correct and Prisma client is generated.");
+  }
+  if (!prisma.user) {
+    throw new Error("Prisma client model 'user' is not defined. Please ensure your schema.prisma is correct and Prisma client is generated.");
+  }
+
   // Roles (align with schema.prisma)
   const adminRole = await prisma.role.upsert({
     where: { name: "admin" },
@@ -28,14 +35,15 @@ async function main() {
     create: { name: "sales_finance", description: "Sales/Finance" },
   });
 
-  // Users (fields must match User model: name?, email, password, roleId)
+  // Users (fields must match User model: firstName, lastName, email, passwordHash, roleId)
   const admin = await prisma.user.upsert({
     where: { email: "admin@oneflow.com" },
     update: {},
     create: {
       email: "admin@oneflow.com",
-      password: await bcrypt.hash("admin123", 10),
-      name: "Admin User",
+      passwordHash: await bcrypt.hash("admin123", 10),
+      firstName: "Admin",
+      lastName: "User",
       role: { connect: { id: adminRole.id } },
     },
   });
@@ -45,8 +53,9 @@ async function main() {
     update: {},
     create: {
       email: "pm@oneflow.com",
-      password: await bcrypt.hash("pm123", 10),
-      name: "John Manager",
+      passwordHash: await bcrypt.hash("pm123", 10),
+      firstName: "John",
+      lastName: "Manager",
       role: { connect: { id: pmRole.id } },
     },
   });
@@ -56,8 +65,9 @@ async function main() {
     update: {},
     create: {
       email: "dev1@oneflow.com",
-      password: await bcrypt.hash("dev123", 10),
-      name: "Alice Developer",
+      passwordHash: await bcrypt.hash("dev123", 10),
+      firstName: "Alice",
+      lastName: "Developer",
       role: { connect: { id: memberRole.id } },
     },
   });
@@ -67,8 +77,9 @@ async function main() {
     update: {},
     create: {
       email: "dev2@oneflow.com",
-      password: await bcrypt.hash("dev123", 10),
-      name: "Bob Developer",
+      passwordHash: await bcrypt.hash("dev123", 10),
+      firstName: "Bob",
+      lastName: "Developer",
       role: { connect: { id: memberRole.id } },
     },
   });
@@ -78,8 +89,9 @@ async function main() {
     update: {},
     create: {
       email: "sales@oneflow.com",
-      password: await bcrypt.hash("sales123", 10),
-      name: "Sarah Sales",
+      passwordHash: await bcrypt.hash("sales123", 10),
+      firstName: "Sarah",
+      lastName: "Sales",
       role: { connect: { id: salesRole.id } },
     },
   });

@@ -13,33 +13,43 @@ export async function POST(req) {
     if (existingUser)
       return NextResponse.json({ error: "User already exists" }, { status: 400 });
 
-    // find role, or fallback to default "User"
+    // find role, default to "team_member" which exists in seed/schema
+    const defaultRoleName = "team_member";
     const role = await prisma.role.findUnique({
-      where: { name: "User" }, // default role for signup
+      where: { name: roleName || defaultRoleName },
     });
 
     if (!role)
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
 
-    // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // hash password -> store into passwordHash (schema field)
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // split name into first/last (best-effort)
+    const [firstName, ...rest] = (name || "").trim().split(" ");
+    const lastName = rest.join(" ") || null;
 
     // create user with relation
     const user = await prisma.user.create({
       data: {
-        name,
         email,
-        password: hashedPassword,
+        passwordHash,
+        firstName: firstName || null,
+        lastName,
         role: { connect: { id: role.id } },
       },
+      include: { role: true },
     });
 
     return NextResponse.json(
-      { message: "User registered successfully", user },
+      { message: "User registered successfully", user: { id: user.id, email: user.email, role: user.role.name, firstName: user.firstName, lastName: user.lastName } },
       { status: 201 }
     );
   } catch (error) {
     console.error(error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 }); // 409 Conflict
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
