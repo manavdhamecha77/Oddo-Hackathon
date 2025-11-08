@@ -33,6 +33,8 @@ import { toast } from 'sonner'
 import GenerateInvoiceDialog from '@/components/billing/GenerateInvoiceDialog'
 import CreateSalesOrderModal from '@/components/CreateSalesOrderModal'
 import PurchaseOrderForm from '@/components/forms/PurchaseOrderForm'
+import VendorBillForm from '@/components/forms/VendorBillForm'
+import CustomerInvoiceForm from '@/components/forms/CustomerInvoiceForm'
 
 export default function ProjectLinksPanel({ projectId, userRole }) {
   const [activeTab, setActiveTab] = useState('sales-orders')
@@ -41,6 +43,10 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
   const [showSalesOrderModal, setShowSalesOrderModal] = useState(false)
   const [showPOForm, setShowPOForm] = useState(false)
   const [selectedPO, setSelectedPO] = useState(null)
+  const [showVendorBillForm, setShowVendorBillForm] = useState(false)
+  const [selectedVendorBill, setSelectedVendorBill] = useState(null)
+  const [showCustomerInvoiceForm, setShowCustomerInvoiceForm] = useState(false)
+  const [selectedCustomerInvoice, setSelectedCustomerInvoice] = useState(null)
   const [project, setProject] = useState(null)
   
   const [salesOrders, setSalesOrders] = useState([])
@@ -366,7 +372,10 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
             <h3 className="text-lg font-semibold">Customer Invoices</h3>
             <div className="flex gap-2">
               {canCreateFixedInvoice && (
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => {
+                  setSelectedCustomerInvoice(null)
+                  setShowCustomerInvoiceForm(true)
+                }}>
                   <Plus className="w-4 h-4 mr-2" />
                   Fixed Invoice
                 </Button>
@@ -407,7 +416,15 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
                     <TableCell>{formatCurrency(inv.totalAmount)}</TableCell>
                     <TableCell>{getStatusBadge(inv.status)}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedCustomerInvoice(inv)
+                          setShowCustomerInvoiceForm(true)
+                        }}
+                        title="View / Edit"
+                      >
                         <Eye className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -423,7 +440,10 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Vendor Bills</h3>
             {canCreateVendorBill && (
-              <Button size="sm">
+              <Button size="sm" onClick={() => {
+                setSelectedVendorBill(null)
+                setShowVendorBillForm(true)
+              }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Vendor Bill
               </Button>
@@ -457,7 +477,15 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
                     <TableCell>{formatCurrency(bill.totalAmount)}</TableCell>
                     <TableCell>{getStatusBadge(bill.status)}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedVendorBill(bill)
+                          setShowVendorBillForm(true)
+                        }}
+                        title="View / Edit"
+                      >
                         <Eye className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -598,6 +626,40 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           onSuccess={() => {
             setShowPOForm(false)
             setSelectedPO(null)
+            fetchAllLinks()
+          }}
+        />
+      )}
+
+      {showVendorBillForm && (
+        <VendorBillForm
+          projectId={projectId}
+          existingBill={selectedVendorBill}
+          isOpen={showVendorBillForm}
+          onClose={() => {
+            setShowVendorBillForm(false)
+            setSelectedVendorBill(null)
+          }}
+          onSuccess={() => {
+            setShowVendorBillForm(false)
+            setSelectedVendorBill(null)
+            fetchAllLinks()
+          }}
+        />
+      )}
+
+      {showCustomerInvoiceForm && (
+        <CustomerInvoiceForm
+          projectId={projectId}
+          existingInvoice={selectedCustomerInvoice}
+          isOpen={showCustomerInvoiceForm}
+          onClose={() => {
+            setShowCustomerInvoiceForm(false)
+            setSelectedCustomerInvoice(null)
+          }}
+          onSuccess={() => {
+            setShowCustomerInvoiceForm(false)
+            setSelectedCustomerInvoice(null)
             fetchAllLinks()
           }}
         />

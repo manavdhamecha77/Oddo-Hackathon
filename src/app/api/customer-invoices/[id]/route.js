@@ -45,22 +45,33 @@ export async function PUT(req, { params }) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Check role
-    if (!['PROJECT_MANAGER', 'SALES_FINANCE', 'ADMIN'].includes(user.role)) {
+    if (!['project_manager', 'sales_finance', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { id } = await params;
-    const { invoiceNumber, customerName, invoiceDate, dueDate, totalAmount, status } = await req.json();
+    const { invoiceNumber, customerId, salesOrderId, invoiceDate, dueDate, totalAmount, status, notes, lines } = await req.json();
+
+    // Ensure the invoice belongs to the same company as the user via project link
+    const existing = await prisma.customerInvoice.findUnique({
+      where: { id: parseInt(id) },
+      include: { project: { include: { projectManager: { select: { companyId: true } } } } }
+    });
+    if (!existing || existing.project?.projectManager?.companyId !== user.companyId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const updatedInvoice = await prisma.customerInvoice.update({
       where: { id: parseInt(id) },
       data: {
         ...(invoiceNumber && { invoiceNumber }),
-        ...(customerName && { customerName }),
+        ...(customerId && { customerId: parseInt(customerId) }),
+        ...(salesOrderId !== undefined && { salesOrderId: salesOrderId ? parseInt(salesOrderId) : null }),
         ...(invoiceDate && { invoiceDate: new Date(invoiceDate) }),
-        ...(dueDate && { dueDate: new Date(dueDate) }),
+        ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
         ...(totalAmount !== undefined && { totalAmount: parseFloat(totalAmount) }),
-        ...(status && { status })
+        ...(status && { status }),
+        ...(notes !== undefined && { notes })
       },
       include: {
         project: true,
@@ -78,7 +89,25 @@ export async function PUT(req, { params }) {
       }
     });
 
-    return NextResponse.json(updatedInvoice);
+    // Replace lines if provided
+    if (Array.isArray(lines)) {
+      await prisma.customerInvoiceLine.deleteMany({ where: { invoiceId: updatedInvoice.id } });
+      await prisma.customerInvoiceLine.createMany({
+        data: lines.map(line => ({
+          invoiceId: updatedInvoice.id,
+          description: line.description,
+          quantity: parseFloat(line.quantity),
+          unitPrice: parseFloat(line.unitPrice)
+        }))
+      });
+    }
+
+    const refreshed = await prisma.customerInvoice.findUnique({
+      where: { id: parseInt(id) },
+      include: { project: true, customer: true, salesOrder: true, lines: true, creator: { select: { id: true, firstName: true, lastName: true, email: true } } }
+    });
+
+    return NextResponse.json(refreshed);
   } catch (error) {
     console.error('Error updating customer invoice:', error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -92,7 +121,7 @@ export async function DELETE(req, { params }) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Only ADMIN can delete
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'admin') {
       return NextResponse.json({ error: "Forbidden - Admin only" }, { status: 403 });
     }
 

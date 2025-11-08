@@ -9,21 +9,35 @@ export async function GET(req) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Get query parameters
-    const { searchParams } = new URL(req.url);
+    const { searchParams} = new URL(req.url);
     const projectId = searchParams.get('projectId');
 
-    // Build where clause
-    const whereClause = {
-      project: {
-        projectManager: {
-          companyId: user.companyId
-        }
-      }
-    };
+    let whereClause = {};
 
     // Filter by project if provided
     if (projectId) {
       whereClause.projectId = parseInt(projectId);
+      
+      // For non-admins, verify the project belongs to their company
+      if (user.role !== 'admin') {
+        const project = await prisma.project.findUnique({
+          where: { id: parseInt(projectId) },
+          select: { projectManager: { select: { companyId: true } } }
+        });
+        
+        if (!project || project.projectManager?.companyId !== user.companyId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    } else {
+      // If no projectId provided, non-admins only see their company's invoices
+      if (user.role !== 'admin') {
+        whereClause.project = {
+          projectManager: {
+            companyId: user.companyId
+          }
+        };
+      }
     }
 
     // Filter by companyId to prevent cross-company data access
@@ -53,17 +67,17 @@ export async function POST(req) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Check role
-    if (!['PROJECT_MANAGER', 'SALES_FINANCE', 'ADMIN'].includes(user.role)) {
+    if (!['project_manager', 'sales_finance', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { projectId, invoiceNumber, customerId, invoiceDate, dueDate, totalAmount, status, lines } = await req.json();
+    const { projectId, invoiceNumber, customerId, salesOrderId, invoiceDate, dueDate, totalAmount, status, notes, lines } = await req.json();
 
     if (!projectId || !invoiceNumber || !customerId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // CRITICAL: Verify project belongs to user's company
+    // CRITICAL: Verify project exists and belongs to user's company (unless user is admin)
     const project = await prisma.project.findUnique({
       where: { id: parseInt(projectId) },
       include: {
@@ -71,7 +85,12 @@ export async function POST(req) {
       }
     });
 
-    if (!project || project.projectManager.companyId !== user.companyId) {
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Non-admins must belong to the same company
+    if (user.role !== 'admin' && project.projectManager?.companyId !== user.companyId) {
       return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
     }
 
@@ -79,11 +98,13 @@ export async function POST(req) {
       data: {
         invoiceNumber,
         customerId: parseInt(customerId),
+        salesOrderId: salesOrderId ? parseInt(salesOrderId) : null,
         invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,
         totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
         status: status || 'draft',
         projectId: parseInt(projectId),
+        notes: notes || null,
         createdBy: user.id,
         lines: lines ? {
           create: lines.map(line => ({
@@ -96,6 +117,7 @@ export async function POST(req) {
       include: {
         project: true,
         customer: true,
+        salesOrder: true,
         lines: true
       }
     });

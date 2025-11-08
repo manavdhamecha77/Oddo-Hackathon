@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Plus, Trash2, Save, Loader2, Building2 } from 'lucide-react'
+import { Plus, Trash2, Save, Loader2, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,50 +23,47 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default function PurchaseOrderForm({ 
+export default function CustomerInvoiceForm({ 
   projectId, 
-  existingPO = null, 
+  existingInvoice = null, 
   isOpen, 
   onClose, 
   onSuccess 
 }) {
   const [loading, setLoading] = useState(false)
-  const [vendors, setVendors] = useState([])
-  const [loadingVendors, setLoadingVendors] = useState(true)
-  const [showNewVendorForm, setShowNewVendorForm] = useState(false)
+  const [customers, setCustomers] = useState([])
+  const [loadingCustomers, setLoadingCustomers] = useState(true)
+  const [salesOrders, setSalesOrders] = useState([])
 
   // Form state
   const [formData, setFormData] = useState({
-    orderNumber: '',
-    vendorId: '',
-    orderDate: new Date().toISOString().split('T')[0],
+    invoiceNumber: '',
+    customerId: '',
+    salesOrderId: '',
+    invoiceDate: new Date().toISOString().split('T')[0],
+    dueDate: '',
     status: 'draft',
     notes: '',
     lines: [{ description: '', quantity: 1, unitPrice: 0 }]
   })
 
-  // New vendor form state
-  const [newVendor, setNewVendor] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: ''
-  })
-
   useEffect(() => {
     if (isOpen) {
-      fetchVendors()
+      fetchCustomers()
+      fetchSalesOrders()
       
-      // If editing existing PO, populate form
-      if (existingPO) {
+      // If editing existing invoice, populate form
+      if (existingInvoice) {
         setFormData({
-          orderNumber: existingPO.orderNumber,
-          vendorId: existingPO.vendorId.toString(),
-          orderDate: existingPO.orderDate ? new Date(existingPO.orderDate).toISOString().split('T')[0] : '',
-          status: existingPO.status,
-          notes: existingPO.notes || '',
-          lines: existingPO.lines?.length > 0 
-            ? existingPO.lines.map(line => ({
+          invoiceNumber: existingInvoice.invoiceNumber,
+          customerId: existingInvoice.customerId.toString(),
+          salesOrderId: existingInvoice.salesOrderId?.toString() || '',
+          invoiceDate: existingInvoice.invoiceDate ? new Date(existingInvoice.invoiceDate).toISOString().split('T')[0] : '',
+          dueDate: existingInvoice.dueDate ? new Date(existingInvoice.dueDate).toISOString().split('T')[0] : '',
+          status: existingInvoice.status,
+          notes: existingInvoice.notes || '',
+          lines: existingInvoice.lines?.length > 0 
+            ? existingInvoice.lines.map(line => ({
                 description: line.description,
                 quantity: line.quantity,
                 unitPrice: line.unitPrice
@@ -74,34 +71,46 @@ export default function PurchaseOrderForm({
             : [{ description: '', quantity: 1, unitPrice: 0 }]
         })
       } else {
-        // Generate PO number for new orders
-        generatePONumber()
+        // Generate invoice number for new invoices
+        generateInvoiceNumber()
       }
     }
-  }, [isOpen, existingPO])
+  }, [isOpen, existingInvoice])
 
-  const fetchVendors = async () => {
+  const fetchCustomers = async () => {
     try {
-      setLoadingVendors(true)
-      const res = await fetch('/api/partners?type=vendor')
+      setLoadingCustomers(true)
+      const res = await fetch('/api/partners?type=customer')
       if (res.ok) {
         const data = await res.json()
-        setVendors(data)
+        setCustomers(data)
       }
     } catch (error) {
-      console.error('Error fetching vendors:', error)
-      toast.error('Failed to load vendors')
+      console.error('Error fetching customers:', error)
+      toast.error('Failed to load customers')
     } finally {
-      setLoadingVendors(false)
+      setLoadingCustomers(false)
     }
   }
 
-  const generatePONumber = () => {
+  const fetchSalesOrders = async () => {
+    try {
+      const res = await fetch(`/api/sales-orders?projectId=${projectId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSalesOrders(data)
+      }
+    } catch (error) {
+      console.error('Error fetching sales orders:', error)
+    }
+  }
+
+  const generateInvoiceNumber = () => {
     const timestamp = Date.now().toString().slice(-6)
     const randomNum = Math.floor(Math.random() * 100).toString().padStart(2, '0')
     setFormData(prev => ({
       ...prev,
-      orderNumber: `PO-${timestamp}-${randomNum}`
+      invoiceNumber: `INV-${timestamp}-${randomNum}`
     }))
   }
 
@@ -138,47 +147,11 @@ export default function PurchaseOrderForm({
     }))
   }
 
-  const handleCreateVendor = async () => {
-    if (!newVendor.name) {
-      toast.error('Vendor name is required')
-      return
-    }
-
-    try {
-      setLoading(true)
-      const res = await fetch('/api/partners', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newVendor,
-          type: 'vendor'
-        })
-      })
-
-      if (res.ok) {
-        const createdVendor = await res.json()
-        toast.success('Vendor created successfully')
-        setVendors(prev => [...prev, createdVendor])
-        setFormData(prev => ({ ...prev, vendorId: createdVendor.id.toString() }))
-        setShowNewVendorForm(false)
-        setNewVendor({ name: '', email: '', phone: '', address: '' })
-      } else {
-        const error = await res.json()
-        toast.error(error.error || 'Failed to create vendor')
-      }
-    } catch (error) {
-      console.error('Error creating vendor:', error)
-      toast.error('Failed to create vendor')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
 
     // Validation
-    if (!formData.orderNumber || !formData.vendorId) {
+    if (!formData.invoiceNumber || !formData.customerId) {
       toast.error('Please fill in all required fields')
       return
     }
@@ -194,9 +167,11 @@ export default function PurchaseOrderForm({
       const totalAmount = calculateTotal()
       const payload = {
         projectId,
-        orderNumber: formData.orderNumber,
-        vendorId: parseInt(formData.vendorId),
-        orderDate: formData.orderDate,
+        invoiceNumber: formData.invoiceNumber,
+        customerId: parseInt(formData.customerId),
+        ...(formData.salesOrderId && formData.salesOrderId !== 'null' && { salesOrderId: parseInt(formData.salesOrderId) }),
+        invoiceDate: formData.invoiceDate,
+        dueDate: formData.dueDate || null,
         status: formData.status,
         totalAmount,
         notes: formData.notes,
@@ -207,11 +182,11 @@ export default function PurchaseOrderForm({
         }))
       }
 
-      const url = existingPO 
-        ? `/api/purchase-orders/${existingPO.id}`
-        : '/api/purchase-orders'
+      const url = existingInvoice 
+        ? `/api/customer-invoices/${existingInvoice.id}`
+        : '/api/customer-invoices'
       
-      const method = existingPO ? 'PUT' : 'POST'
+      const method = existingInvoice ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
@@ -220,16 +195,16 @@ export default function PurchaseOrderForm({
       })
 
       if (res.ok) {
-        toast.success(existingPO ? 'Purchase Order updated!' : 'Purchase Order created!')
+        toast.success(existingInvoice ? 'Invoice updated!' : 'Invoice created!')
         if (onSuccess) onSuccess()
         handleClose()
       } else {
         const error = await res.json()
-        toast.error(error.error || 'Failed to save Purchase Order')
+        toast.error(error.error || 'Failed to save invoice')
       }
     } catch (error) {
-      console.error('Error saving purchase order:', error)
-      toast.error('Failed to save Purchase Order')
+      console.error('Error saving invoice:', error)
+      toast.error('Failed to save invoice')
     } finally {
       setLoading(false)
     }
@@ -237,15 +212,15 @@ export default function PurchaseOrderForm({
 
   const handleClose = () => {
     setFormData({
-      orderNumber: '',
-      vendorId: '',
-      orderDate: new Date().toISOString().split('T')[0],
+      invoiceNumber: '',
+      customerId: '',
+      salesOrderId: '',
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: '',
       status: 'draft',
       notes: '',
       lines: [{ description: '', quantity: 1, unitPrice: 0 }]
     })
-    setShowNewVendorForm(false)
-    setNewVendor({ name: '', email: '', phone: '', address: '' })
     onClose()
   }
 
@@ -254,13 +229,13 @@ export default function PurchaseOrderForm({
       <DialogContent className="w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl flex items-center gap-2">
-            <Building2 className="w-6 h-6" />
-            {existingPO ? 'Edit Purchase Order' : 'Create Purchase Order'}
+            <Receipt className="w-6 h-6" />
+            {existingInvoice ? 'Edit Customer Invoice' : 'Create Customer Invoice'}
           </DialogTitle>
           <DialogDescription>
-            {existingPO 
-              ? 'Update the purchase order details below'
-              : 'Create a formal document to purchase goods/services from a vendor for this project'
+            {existingInvoice 
+              ? 'Update the invoice details below'
+              : 'Generate an invoice to bill the customer for work completed or milestones achieved'
             }
           </DialogDescription>
         </DialogHeader>
@@ -269,60 +244,79 @@ export default function PurchaseOrderForm({
           {/* Header Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Order Information</CardTitle>
+              <CardTitle className="text-lg">Invoice Information</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="orderNumber">PO Number *</Label>
+                <Label htmlFor="invoiceNumber">Invoice Number *</Label>
                 <Input
-                  id="orderNumber"
-                  value={formData.orderNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
-                  placeholder="PO-123456"
+                  id="invoiceNumber"
+                  value={formData.invoiceNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                  placeholder="INV-123456"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="orderDate">Order Date *</Label>
+                <Label htmlFor="invoiceDate">Invoice Date *</Label>
                 <Input
-                  id="orderDate"
+                  id="invoiceDate"
                   type="date"
-                  value={formData.orderDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, orderDate: e.target.value }))}
+                  value={formData.invoiceDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, invoiceDate: e.target.value }))}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vendor">Vendor *</Label>
-                <div className="flex gap-2">
-                  <Select 
-                    value={formData.vendorId} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, vendorId: value }))}
-                    disabled={loadingVendors}
-                  >
-                    <SelectTrigger id="vendor">
-                      <SelectValue placeholder={loadingVendors ? "Loading vendors..." : "Select vendor"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vendors.map((vendor) => (
-                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
-                          {vendor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowNewVendorForm(!showNewVendorForm)}
-                    title="Create new vendor"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Label htmlFor="customer">Customer *</Label>
+                <Select 
+                  value={formData.customerId} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, customerId: value }))}
+                  disabled={loadingCustomers}
+                >
+                  <SelectTrigger id="customer">
+                    <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select customer"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id.toString()}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="salesOrder">Link to Sales Order (Optional)</Label>
+                <Select 
+                  value={formData.salesOrderId} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, salesOrderId: value }))}
+                >
+                  <SelectTrigger id="salesOrder">
+                    <SelectValue placeholder="Select sales order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="null">No Sales Order</SelectItem>
+                    {salesOrders.map((so) => (
+                      <SelectItem key={so.id} value={so.id.toString()}>
+                        {so.orderNumber} - {so.customer?.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+                />
               </div>
 
               <div className="space-y-2">
@@ -337,7 +331,7 @@ export default function PurchaseOrderForm({
                   <SelectContent>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="sent">Sent</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
@@ -345,79 +339,10 @@ export default function PurchaseOrderForm({
             </CardContent>
           </Card>
 
-          {/* New Vendor Form */}
-          {showNewVendorForm && (
-            <Card className="border-primary bg-primary/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Create New Vendor</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="vendorName">Vendor Name *</Label>
-                    <Input
-                      id="vendorName"
-                      value={newVendor.name}
-                      onChange={(e) => setNewVendor(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Acme Photography Services"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vendorEmail">Email</Label>
-                    <Input
-                      id="vendorEmail"
-                      type="email"
-                      value={newVendor.email}
-                      onChange={(e) => setNewVendor(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="vendor@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vendorPhone">Phone</Label>
-                    <Input
-                      id="vendorPhone"
-                      value={newVendor.phone}
-                      onChange={(e) => setNewVendor(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+1 234 567 8900"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vendorAddress">Address</Label>
-                    <Input
-                      id="vendorAddress"
-                      value={newVendor.address}
-                      onChange={(e) => setNewVendor(prev => ({ ...prev, address: e.target.value }))}
-                      placeholder="123 Main St, City"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    onClick={handleCreateVendor}
-                    disabled={loading || !newVendor.name}
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create Vendor'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowNewVendorForm(false)
-                      setNewVendor({ name: '', email: '', phone: '', address: '' })
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Line Items */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-lg">Products / Services</CardTitle>
+              <CardTitle className="text-lg">Invoice Items</CardTitle>
               <Button
                 type="button"
                 variant="outline"
@@ -515,7 +440,7 @@ export default function PurchaseOrderForm({
               id="notes"
               value={formData.notes}
               onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Additional notes or special terms..."
+              placeholder="Additional notes, payment terms, or special instructions..."
               rows={2}
               className="resize-none text-sm"
             />
@@ -535,20 +460,14 @@ export default function PurchaseOrderForm({
           <Button 
             type="submit" 
             disabled={loading}
-            onClick={(e) => {
-              e.preventDefault()
-              const form = e.target.closest('dialog').querySelector('form')
-              if (form) {
-                form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
-              }
-            }}
+            onClick={handleSubmit}
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
-            {existingPO ? 'Update' : 'Create'} Purchase Order
+            {existingInvoice ? 'Update' : 'Create'} Invoice
           </Button>
         </div>
       </DialogContent>
