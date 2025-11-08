@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { Users, Mail, CheckCircle, Clock, ArrowLeft, Shield, Copy, Send, Loader2, UserPlus, Upload, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,6 +13,10 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvResults, setCsvResults] = useState(null);
+  const [invitations, setInvitations] = useState([]);
+  const fileInputRef = useRef(null);
   const [userStats, setUserStats] = useState({
     totalMembers: 0,
     projectManagers: 0,
@@ -148,7 +153,8 @@ export default function AdminPage() {
       if (res.ok) {
         setCsvResults(data);
         toast.success(`Successfully processed ${data.successful} users!`);
-        fetchInvitations();
+        fetchTeamMembers();
+        fetchUserStats();
       } else {
         toast.error(data.error || 'Failed to process CSV');
       }

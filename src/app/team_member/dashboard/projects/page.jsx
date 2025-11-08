@@ -13,14 +13,22 @@ export default function ProjectsPage() {
   const [currentUser, setCurrentUser] = useState(null)
   const [showMyProjectsOnly, setShowMyProjectsOnly] = useState(false)
 
-  useEffect(() => {
-    fetchCurrentUser()
-    fetchProjects()
-  }, [])
+  const filterProjects = useCallback((projectsToFilter, myProjectsOnly) => {
+    if (!myProjectsOnly || !currentUser) {
+      setProjects(projectsToFilter)
+      return
+    }
 
-  useEffect(() => {
-    filterProjects(allProjects, showMyProjectsOnly)
-  }, [showMyProjectsOnly, allProjects, filterProjects])
+    // Filter to show only projects where user is a member or assigned to tasks
+    const filtered = projectsToFilter.filter(project => {
+      // Check if user is a project member
+      const isMember = project.members?.some(member => member.userId === currentUser.id)
+      // Check if user is the project manager
+      const isManager = project.projectManagerId === currentUser.id
+      return isMember || isManager
+    })
+    setProjects(filtered)
+  }, [currentUser])
 
   const fetchCurrentUser = async () => {
     try {
@@ -52,22 +60,14 @@ export default function ProjectsPage() {
     }
   }
 
-  const filterProjects = useCallback((projectsToFilter, myProjectsOnly) => {
-    if (!myProjectsOnly || !currentUser) {
-      setProjects(projectsToFilter)
-      return
-    }
+  useEffect(() => {
+    fetchCurrentUser()
+    fetchProjects()
+  }, [])
 
-    // Filter to show only projects where user is a member or assigned to tasks
-    const filtered = projectsToFilter.filter(project => {
-      // Check if user is a project member
-      const isMember = project.members?.some(member => member.userId === currentUser.id)
-      // Check if user is the project manager
-      const isManager = project.projectManagerId === currentUser.id
-      return isMember || isManager
-    })
-    setProjects(filtered)
-  }, [currentUser])
+  useEffect(() => {
+    filterProjects(allProjects, showMyProjectsOnly)
+  }, [showMyProjectsOnly, allProjects, filterProjects])
 
   const filteredProjects = projects.filter(project =>
     project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
