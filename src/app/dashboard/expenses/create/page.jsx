@@ -1,31 +1,89 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Upload } from 'lucide-react'
+import { ArrowLeft, Save, Upload, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { toast } from 'sonner'
+
+const expenseSchema = z.object({
+  projectId: z.string().min(1, 'Project is required'),
+  description: z.string().min(3, 'Description must be at least 3 characters'),
+  amount: z.string().min(1, 'Amount is required'),
+  expenseDate: z.string().min(1, 'Date is required'),
+  category: z.string().min(1, 'Category is required'),
+  isBillable: z.boolean().default(false),
+  notes: z.string().optional()
+})
 
 export default function CreateExpensePage() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    project: '',
-    description: '',
-    amount: '',
-    date: '',
-    category: 'Travel',
-    receipt: null
+  const [isLoading, setIsLoading] = useState(false)
+  const [projects, setProjects] = useState([])
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      projectId: '',
+      description: '',
+      amount: '',
+      expenseDate: new Date().toISOString().split('T')[0],
+      category: 'travel',
+      isBillable: false,
+      notes: ''
+    }
   })
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    console.log('Creating expense:', formData)
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects')
+      if (!response.ok) throw new Error('Failed to fetch projects')
+      const data = await response.json()
+      setProjects(data)
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+      toast.error('Failed to load projects')
+    }
   }
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+  const onSubmit = async (data) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: parseInt(data.projectId),
+          description: data.description,
+          amount: parseFloat(data.amount),
+          expenseDate: data.expenseDate,
+          category: data.category,
+          isBillable: data.isBillable,
+          notes: data.notes || null
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create expense')
+      }
+
+      const expense = await response.json()
+      toast.success('Expense submitted successfully!')
+      router.push('/dashboard/expenses')
+    } catch (error) {
+      console.error('Error creating expense:', error)
+      toast.error(error.message || 'Failed to submit expense')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -41,24 +99,25 @@ export default function CreateExpensePage() {
         <p className="text-muted-foreground">Create a new expense record</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-2xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl">
         <div className="bg-card border rounded-xl p-6 space-y-6">
           <div>
-            <label htmlFor="project" className="block text-sm font-medium mb-2">
+            <label htmlFor="projectId" className="block text-sm font-medium mb-2">
               Project *
             </label>
             <select
-              id="project"
-              name="project"
-              required
-              value={formData.project}
-              onChange={handleChange}
+              id="projectId"
+              {...register('projectId')}
               className="w-full px-4 py-2 border rounded-lg bg-background"
             >
               <option value="">Select a project</option>
-              <option value="1">Website Redesign</option>
-              <option value="2">Mobile App Development</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>{project.name}</option>
+              ))}
             </select>
+            {errors.projectId && (
+              <p className="mt-1 text-sm text-red-600">{errors.projectId.message}</p>
+            )}
           </div>
 
           <div>
@@ -67,14 +126,14 @@ export default function CreateExpensePage() {
             </label>
             <textarea
               id="description"
-              name="description"
-              required
-              value={formData.description}
-              onChange={handleChange}
+              {...register('description')}
               rows={3}
               className="w-full px-4 py-2 border rounded-lg bg-background"
               placeholder="What was this expense for?"
             />
+            {errors.description && (
+              <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-6">
@@ -85,68 +144,104 @@ export default function CreateExpensePage() {
               <input
                 type="number"
                 id="amount"
-                name="amount"
-                required
-                value={formData.amount}
-                onChange={handleChange}
+                {...register('amount')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
                 placeholder="0.00"
                 step="0.01"
               />
+              {errors.amount && (
+                <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+              )}
             </div>
             <div>
-              <label htmlFor="date" className="block text-sm font-medium mb-2">
+              <label htmlFor="expenseDate" className="block text-sm font-medium mb-2">
                 Date *
               </label>
               <input
                 type="date"
-                id="date"
-                name="date"
-                required
-                value={formData.date}
-                onChange={handleChange}
+                id="expenseDate"
+                {...register('expenseDate')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
               />
+              {errors.expenseDate && (
+                <p className="mt-1 text-sm text-red-600">{errors.expenseDate.message}</p>
+              )}
             </div>
           </div>
 
           <div>
             <label htmlFor="category" className="block text-sm font-medium mb-2">
-              Category
+              Category *
             </label>
             <select
               id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
+              {...register('category')}
               className="w-full px-4 py-2 border rounded-lg bg-background"
             >
-              <option value="Travel">Travel</option>
-              <option value="Software">Software</option>
-              <option value="Materials">Materials</option>
-              <option value="Other">Other</option>
+              <option value="travel">Travel</option>
+              <option value="software">Software</option>
+              <option value="materials">Materials</option>
+              <option value="meals">Meals</option>
+              <option value="equipment">Equipment</option>
+              <option value="other">Other</option>
             </select>
+            {errors.category && (
+              <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="isBillable" className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                id="isBillable"
+                {...register('isBillable')}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">This expense is billable to client</span>
+            </label>
+          </div>
+
+          <div>
+            <label htmlFor="notes" className="block text-sm font-medium mb-2">
+              Notes (Optional)
+            </label>
+            <textarea
+              id="notes"
+              {...register('notes')}
+              rows={2}
+              className="w-full px-4 py-2 border rounded-lg bg-background"
+              placeholder="Additional notes or context..."
+            />
           </div>
 
           <div>
             <label htmlFor="receipt" className="block text-sm font-medium mb-2">
-              Receipt
+              Receipt (Coming Soon)
             </label>
-            <div className="border-2 border-dashed rounded-lg p-8 text-center">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center opacity-50 cursor-not-allowed">
               <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">Click to upload or drag and drop</p>
+              <p className="text-sm text-muted-foreground mb-2">File upload feature coming soon</p>
               <p className="text-xs text-muted-foreground">PNG, JPG, PDF up to 10MB</p>
-              <input type="file" className="hidden" id="receipt" accept="image/*,application/pdf" />
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex gap-4">
-          <Button type="submit">
-            <Save className="w-4 h-4 mr-2" />
-            Submit Expense
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Submit Expense
+              </>
+            )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
             Cancel
           </Button>
         </div>

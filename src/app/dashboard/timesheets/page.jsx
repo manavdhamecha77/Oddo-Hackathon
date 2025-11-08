@@ -1,15 +1,48 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Clock, Filter, Search } from 'lucide-react'
+import { Plus, Clock, Filter, Search, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 export default function TimesheetsPage() {
-  const timesheets = [
-    { id: 1, project: 'Website Redesign', task: 'Design homepage', date: '2025-11-07', hours: 8, status: 'Billed', user: 'John Doe' },
-    { id: 2, project: 'Mobile App', task: 'Implement auth', date: '2025-11-07', hours: 6.5, status: 'Unbilled', user: 'Jane Smith' },
-    { id: 3, project: 'Website Redesign', task: 'Create wireframes', date: '2025-11-06', hours: 4, status: 'Unbilled', user: 'John Doe' },
-  ]
+  const [timesheets, setTimesheets] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  useEffect(() => {
+    fetchTimesheets()
+  }, [])
+
+  const fetchTimesheets = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/timesheets')
+      if (!response.ok) throw new Error('Failed to fetch timesheets')
+      const data = await response.json()
+      setTimesheets(data)
+    } catch (error) {
+      console.error('Error fetching timesheets:', error)
+      toast.error('Failed to load timesheets')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredTimesheets = timesheets.filter(entry =>
+    entry.task?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-8">
@@ -31,6 +64,8 @@ export default function TimesheetsPage() {
             <input
               type="text"
               placeholder="Search timesheets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background"
             />
           </div>
@@ -40,40 +75,50 @@ export default function TimesheetsPage() {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b">
-              <tr>
-                <th className="text-left p-4 font-medium text-sm">Project</th>
-                <th className="text-left p-4 font-medium text-sm">Task</th>
-                <th className="text-left p-4 font-medium text-sm">User</th>
-                <th className="text-left p-4 font-medium text-sm">Date</th>
-                <th className="text-left p-4 font-medium text-sm">Hours</th>
-                <th className="text-left p-4 font-medium text-sm">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {timesheets.map((entry) => (
-                <tr key={entry.id} className="hover:bg-muted/50">
-                  <td className="p-4">{entry.project}</td>
-                  <td className="p-4">{entry.task}</td>
-                  <td className="p-4">{entry.user}</td>
-                  <td className="p-4">{new Date(entry.date).toLocaleDateString()}</td>
-                  <td className="p-4 font-medium">{entry.hours}h</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      entry.status === 'Billed' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    }`}>
-                      {entry.status}
-                    </span>
-                  </td>
+        {filteredTimesheets.length === 0 ? (
+          <div className="p-12 text-center">
+            <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No timesheets found</h3>
+            <p className="text-muted-foreground mb-4">Start logging your time to see entries here</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left p-4 font-medium text-sm">Project</th>
+                  <th className="text-left p-4 font-medium text-sm">Task</th>
+                  <th className="text-left p-4 font-medium text-sm">User</th>
+                  <th className="text-left p-4 font-medium text-sm">Date</th>
+                  <th className="text-left p-4 font-medium text-sm">Hours</th>
+                  <th className="text-left p-4 font-medium text-sm">Billable</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {filteredTimesheets.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-muted/50">
+                    <td className="p-4">{entry.project?.name || 'N/A'}</td>
+                    <td className="p-4">{entry.task?.title || 'N/A'}</td>
+                    <td className="p-4">
+                      {entry.user?.firstName} {entry.user?.lastName}
+                    </td>
+                    <td className="p-4">{new Date(entry.workDate).toLocaleDateString()}</td>
+                    <td className="p-4 font-medium">{Number(entry.hours)}h</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        entry.isBillable 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {entry.isBillable ? 'Billable' : 'Non-billable'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,52 +1,65 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, TrendingUp, DollarSign, Clock, AlertCircle } from 'lucide-react'
+import { Plus, TrendingUp, DollarSign, Clock, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        if (!res.ok) {
-          // Unauthorized or error -> go to login
+        setLoading(true);
+        
+        // Fetch user
+        const userRes = await fetch("/api/auth/me", { credentials: "include" });
+        if (!userRes.ok) {
           window.location.href = "/login";
           return;
         }
-        // Guard against empty/invalid JSON bodies
-        const ct = res.headers.get("content-type") || "";
-        if (!ct.includes("application/json")) {
-          window.location.href = "/login";
-          return;
+        const userData = await userRes.json();
+        setUser(userData);
+
+        // Fetch projects
+        const projectsRes = await fetch("/api/projects", { credentials: "include" });
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          setProjects(projectsData.slice(0, 4)); // Get only 4 most recent
+          
+          // Calculate basic stats from projects
+          const activeProjects = projectsData.filter(p => p.status === 'in_progress').length;
+          setStats({
+            activeProjects,
+            totalProjects: projectsData.length,
+          });
         }
-        const data = await res.json();
-        setUser(data);
-      } catch (e) {
-        window.location.href = "/login";
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchUser();
+    fetchData();
   }, []);
 
-  // Mock data - will be replaced with real API data
-  const stats = [
-    { label: 'Active Projects', value: '12', change: '+3 this month', icon: TrendingUp, color: 'text-blue-500' },
-    { label: 'Total Revenue', value: '$125,450', change: '+12% from last month', icon: DollarSign, color: 'text-green-500' },
-    { label: 'Hours Logged', value: '847', change: 'This month', icon: Clock, color: 'text-purple-500' },
-    { label: 'Pending Invoices', value: '5', change: '$23,400 outstanding', icon: AlertCircle, color: 'text-orange-500' },
-  ]
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const recentProjects = [
-    { id: 1, name: 'Website Redesign', client: 'TechCorp', status: 'In Progress', profit: '$12,450', progress: 65 },
-    { id: 2, name: 'Mobile App Development', client: 'StartupHub', status: 'In Progress', profit: '$28,900', progress: 45 },
-    { id: 3, name: 'Marketing Campaign', client: 'BrandCo', status: 'Planning', profit: '$8,200', progress: 20 },
-    { id: 4, name: 'Database Migration', client: 'DataSoft', status: 'In Progress', profit: '$15,670', progress: 80 },
-  ]
-
-  if (!user) return <div className="p-8"><p>Loading...</p></div>;
+  if (!user) return null;
 
   return (
     <div className="p-8">
@@ -66,16 +79,41 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-card border rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
-            </div>
-            <div className="text-3xl font-bold mb-1">{stat.value}</div>
-            <p className="text-sm text-muted-foreground">{stat.change}</p>
+        <div className="bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">Active Projects</span>
+            <TrendingUp className="w-5 h-5 text-blue-500" />
           </div>
-        ))}
+          <div className="text-3xl font-bold mb-1">{stats?.activeProjects || 0}</div>
+          <p className="text-sm text-muted-foreground">In progress</p>
+        </div>
+
+        <div className="bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">Total Projects</span>
+            <DollarSign className="w-5 h-5 text-green-500" />
+          </div>
+          <div className="text-3xl font-bold mb-1">{stats?.totalProjects || 0}</div>
+          <p className="text-sm text-muted-foreground">All time</p>
+        </div>
+
+        <div className="bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">Team Members</span>
+            <Clock className="w-5 h-5 text-purple-500" />
+          </div>
+          <div className="text-3xl font-bold mb-1">-</div>
+          <p className="text-sm text-muted-foreground">Coming soon</p>
+        </div>
+
+        <div className="bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-muted-foreground">Pending Tasks</span>
+            <AlertCircle className="w-5 h-5 text-orange-500" />
+          </div>
+          <div className="text-3xl font-bold mb-1">-</div>
+          <p className="text-sm text-muted-foreground">Coming soon</p>
+        </div>
       </div>
 
       {/* Recent Projects */}
@@ -86,39 +124,51 @@ export default function Dashboard() {
             <Link href="/dashboard/projects">View All</Link>
           </Button>
         </div>
-        <div className="divide-y">
-          {recentProjects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/dashboard/projects/${project.id}`}
-              className="p-6 hover:bg-muted/50 transition-colors flex items-center justify-between"
-            >
-              <div className="flex-1">
-                <h3 className="font-semibold mb-1">{project.name}</h3>
-                <p className="text-sm text-muted-foreground">{project.client}</p>
-              </div>
-              <div className="flex items-center gap-8">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Status</p>
-                  <span className="text-sm font-medium">{project.status}</span>
+        {projects.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-muted-foreground mb-4">No projects yet</p>
+            <Button asChild>
+              <Link href="/dashboard/projects/create">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Project
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {projects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/dashboard/projects/${project.id}`}
+                className="p-6 hover:bg-muted/50 transition-colors flex items-center justify-between"
+              >
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{project.name}</h3>
+                  <p className="text-sm text-muted-foreground">{project.description || 'No description'}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Profit</p>
-                  <span className="text-sm font-semibold text-green-600">{project.profit}</span>
-                </div>
-                <div className="w-32">
-                  <p className="text-sm text-muted-foreground mb-2">Progress</p>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{ width: `${project.progress}%` }}
-                    />
+                <div className="flex items-center gap-8">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Status</p>
+                    <span className="text-sm font-medium capitalize">{project.status?.replace('_', ' ')}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Budget</p>
+                    <span className="text-sm font-semibold">${project.budget?.toLocaleString() || 0}</span>
+                  </div>
+                  <div className="w-32">
+                    <p className="text-sm text-muted-foreground mb-2">Progress</p>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full"
+                        style={{ width: `${project.progress || 0}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
