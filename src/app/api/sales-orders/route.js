@@ -19,12 +19,22 @@ export async function GET(req) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Only sales_finance role can access sales orders
+    // Only sales_finance and admin roles can access sales orders
     if (user.role.name !== "sales_finance" && user.role.name !== "admin") {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Check if filtering by projectId
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get('projectId');
+
+    const where = {};
+    if (projectId) {
+      where.projectId = parseInt(projectId);
+    }
+
     const salesOrders = await prisma.salesOrder.findMany({
+      where,
       include: {
         project: true,
         customer: true,
@@ -69,11 +79,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const { projectId, orderNumber, customerId, orderDate, totalAmount, status, lines } = await req.json();
-
-    if (!projectId || !orderNumber || !customerId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    // Only sales_finance role can create sales orders
+    // Only sales_finance and admin roles can create sales orders
     if (user.role.name !== "sales_finance" && user.role.name !== "admin") {
       return NextResponse.json({ error: "Access denied: Sales & Finance role required" }, { status: 403 });
     }

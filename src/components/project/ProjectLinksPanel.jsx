@@ -31,11 +31,14 @@ import {
 } from '@/components/ui/table'
 import { toast } from 'sonner'
 import GenerateInvoiceDialog from '@/components/billing/GenerateInvoiceDialog'
+import CreateSalesOrderModal from '@/components/CreateSalesOrderModal'
 
 export default function ProjectLinksPanel({ projectId, userRole }) {
   const [activeTab, setActiveTab] = useState('sales-orders')
   const [isLoading, setIsLoading] = useState(true)
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false)
+  const [showSalesOrderModal, setShowSalesOrderModal] = useState(false)
+  const [project, setProject] = useState(null)
   
   const [salesOrders, setSalesOrders] = useState([])
   const [purchaseOrders, setPurchaseOrders] = useState([])
@@ -74,9 +77,22 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
 
   useEffect(() => {
     if (canViewLinks) {
+      fetchProject()
       fetchAllLinks()
     }
   }, [projectId, canViewLinks])
+
+  const fetchProject = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setProject(data)
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error)
+    }
+  }
 
   const fetchAllLinks = async () => {
     try {
@@ -219,7 +235,7 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Sales Orders</h3>
             {canCreateSO && (
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowSalesOrderModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Sales Order
               </Button>
@@ -519,6 +535,18 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           onClose={() => setShowInvoiceDialog(false)}
           onSuccess={() => {
             setShowInvoiceDialog(false)
+            fetchAllLinks()
+          }}
+        />
+      )}
+
+      {showSalesOrderModal && (
+        <CreateSalesOrderModal
+          isOpen={showSalesOrderModal}
+          onClose={() => setShowSalesOrderModal(false)}
+          projectId={projectId}
+          projectName={project?.name || 'Project'}
+          onSuccess={() => {
             fetchAllLinks()
           }}
         />

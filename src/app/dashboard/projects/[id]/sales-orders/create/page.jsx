@@ -1,21 +1,22 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Plus, Trash2, Loader2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
-export default function CreateSalesOrderPage() {
+export default function CreateProjectSalesOrderPage({ params }) {
+  const resolvedParams = use(params)
+  const projectId = resolvedParams.id
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [projects, setProjects] = useState([])
+  const [project, setProject] = useState(null)
   const [customers, setCustomers] = useState([])
   const [products, setProducts] = useState([])
   const [user, setUser] = useState(null)
 
   const [formData, setFormData] = useState({
-    projectId: '',
     customerId: '',
     orderDate: new Date().toISOString().split('T')[0],
     status: 'draft',
@@ -25,8 +26,9 @@ export default function CreateSalesOrderPage() {
 
   useEffect(() => {
     checkUserRole()
+    fetchProject()
     fetchData()
-  }, [])
+  }, [projectId])
 
   const checkUserRole = async () => {
     try {
@@ -47,15 +49,25 @@ export default function CreateSalesOrderPage() {
     }
   }
 
+  const fetchProject = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setProject(data)
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error)
+    }
+  }
+
   const fetchData = async () => {
     try {
-      const [projectsRes, customersRes, productsRes] = await Promise.all([
-        fetch('/api/projects'),
+      const [customersRes, productsRes] = await Promise.all([
         fetch('/api/partners?type=customer'),
         fetch('/api/products')
       ])
 
-      if (projectsRes.ok) setProjects(await projectsRes.json())
       if (customersRes.ok) setCustomers(await customersRes.json())
       if (productsRes.ok) setProducts(await productsRes.json())
     } catch (error) {
@@ -117,7 +129,7 @@ export default function CreateSalesOrderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          projectId: formData.projectId || null,
+          projectId: projectId,
           totalAmount: calculateTotal()
         })
       })
@@ -128,7 +140,7 @@ export default function CreateSalesOrderPage() {
       }
 
       toast.success('Sales order created successfully!')
-      router.push('/dashboard/sales-orders')
+      router.push(`/dashboard/projects/${projectId}`)
     } catch (error) {
       console.error('Error creating sales order:', error)
       toast.error(error.message)
@@ -137,7 +149,7 @@ export default function CreateSalesOrderPage() {
     }
   }
 
-  if (!user) {
+  if (!user || !project) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -149,19 +161,29 @@ export default function CreateSalesOrderPage() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-6">
         <Button variant="outline" size="sm" asChild className="mb-4">
-          <Link href="/dashboard/sales-orders">
+          <Link href={`/dashboard/projects/${projectId}`}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Sales Orders
+            Back to Project
           </Link>
         </Button>
         <h1 className="text-3xl font-bold mb-2">Create Sales Order</h1>
-        <p className="text-muted-foreground">Create a new sales order to track expected revenue</p>
+        <p className="text-muted-foreground">Create a new sales order for <span className="font-semibold">{project.name}</span></p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-card border rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4">Order Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Project</label>
+              <input
+                type="text"
+                value={project.name}
+                disabled
+                className="w-full px-3 py-2 border rounded-lg bg-muted text-muted-foreground cursor-not-allowed"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">Customer *</label>
               <select
@@ -173,20 +195,6 @@ export default function CreateSalesOrderPage() {
                 <option value="">Select customer</option>
                 {customers.map(customer => (
                   <option key={customer.id} value={customer.id}>{customer.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Project (Optional)</label>
-              <select
-                value={formData.projectId}
-                onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background"
-              >
-                <option value="">No project (Global)</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
                 ))}
               </select>
             </div>
