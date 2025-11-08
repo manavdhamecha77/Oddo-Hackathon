@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,15 +15,23 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "OneFlow - Project Management & Financial Tracking",
-  description: "Know your project profit in real-time. OneFlow merges project execution with financial tracking for complete visibility.",
+  description:
+    "Know your project profit in real-time. OneFlow merges project execution with financial tracking for complete visibility.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
-        <Toaster position="top-right" richColors />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position="top-right" richColors />
+        </ThemeProvider>
       </body>
     </html>
   );
