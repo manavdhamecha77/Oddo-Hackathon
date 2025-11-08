@@ -41,6 +41,7 @@ export async function GET(req, { params }) {
             email: true,
             role: {
               select: {
+                id: true,
                 name: true
               }
             },
@@ -54,25 +55,7 @@ export async function GET(req, { params }) {
       }
     });
 
-    // If no project members, return all users from the same company
-    if (members.length === 0) {
-      const allUsers = await prisma.user.findMany({
-        where: { 
-          companyId: user.companyId,
-          isActive: true
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-        },
-      });
-      return NextResponse.json(allUsers);
-    }
-
-    const users = members.map(m => m.user);
-    return NextResponse.json(users);
+    return NextResponse.json(members);
   } catch (error) {
     console.error('Error fetching project members:', error);
     return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 });
@@ -121,6 +104,14 @@ export async function POST(req, { params }) {
             firstName: true,
             lastName: true,
             email: true,
+            role: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            hourlyRate: true,
+            isActive: true
           },
         },
       },

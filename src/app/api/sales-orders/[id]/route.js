@@ -13,6 +13,7 @@ export async function GET(req, { params }) {
       where: { id: parseInt(id) },
       include: {
         project: true,
+        customer: true,
         lines: true
       }
     });
@@ -40,20 +41,21 @@ export async function PUT(req, { params }) {
     }
 
     const { id } = await params;
-    const { orderNumber, customerName, orderDate, totalAmount, status, lines } = await req.json();
+    const { orderNumber, customerId, orderDate, totalAmount, status, lines } = await req.json();
 
     // Update sales order
     const updatedSalesOrder = await prisma.salesOrder.update({
       where: { id: parseInt(id) },
       data: {
         ...(orderNumber && { orderNumber }),
-        ...(customerName && { customerName }),
+        ...(customerId && { customerId: parseInt(customerId) }),
         ...(orderDate && { orderDate: new Date(orderDate) }),
         ...(totalAmount !== undefined && { totalAmount: parseFloat(totalAmount) }),
         ...(status && { status })
       },
       include: {
         project: true,
+        customer: true,
         lines: true
       }
     });

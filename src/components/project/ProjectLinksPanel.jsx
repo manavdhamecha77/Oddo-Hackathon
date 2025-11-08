@@ -43,14 +43,15 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
   const [vendorBills, setVendorBills] = useState([])
   const [expenses, setExpenses] = useState([])
 
-  // Role-based permissions
-  const canViewLinks = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(userRole)
-  const canCreateSO = ['ADMIN', 'SALES_FINANCE'].includes(userRole)
-  const canCreatePO = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(userRole)
-  const canCreateVendorBill = ['ADMIN', 'SALES_FINANCE'].includes(userRole)
-  const canCreateFixedInvoice = ['ADMIN', 'SALES_FINANCE'].includes(userRole)
-  const canCreateSmartInvoice = ['ADMIN', 'PROJECT_MANAGER'].includes(userRole)
-  const canApproveExpense = ['ADMIN', 'PROJECT_MANAGER'].includes(userRole)
+  // Role-based permissions (normalize role to uppercase for comparison)
+  const normalizedRole = userRole?.toUpperCase()
+  const canViewLinks = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(normalizedRole)
+  const canCreateSO = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  const canCreatePO = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(normalizedRole)
+  const canCreateVendorBill = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  const canCreateFixedInvoice = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  const canCreateSmartInvoice = ['ADMIN', 'PROJECT_MANAGER'].includes(normalizedRole)
+  const canApproveExpense = ['ADMIN', 'PROJECT_MANAGER'].includes(normalizedRole)
 
   useEffect(() => {
     if (canViewLinks) {

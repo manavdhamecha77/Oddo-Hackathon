@@ -41,6 +41,21 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
   const [isLoadingTasks, setIsLoadingTasks] = useState(true)
 
+  // Auto-detect backLink based on user role if not provided
+  const getBackLink = () => {
+    if (backLink) return backLink
+    if (!userRole) return '/dashboard/projects'
+    
+    const roleLinks = {
+      admin: '/admin/dashboard/projects',
+      project_manager: '/project_manager/dashboard/projects',
+      team_member: '/team_member/dashboard/projects',
+      sales_finance: '/sales_finance/dashboard/projects',
+    }
+    
+    return roleLinks[userRole] || '/dashboard/projects'
+  }
+
   useEffect(() => {
     fetchUserRole()
     fetchTasks()
@@ -323,7 +338,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       {/* Header */}
       <div className="mb-8">
         <Button variant="ghost" size="sm" className="mb-4" asChild>
-          <Link href={backLink}>
+          <Link href={getBackLink()}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
           </Link>

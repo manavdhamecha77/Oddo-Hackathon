@@ -54,9 +54,9 @@ export async function POST(req) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { projectId, orderNumber, customerName, orderDate, totalAmount, status, lines } = await req.json();
+    const { projectId, orderNumber, customerId, orderDate, totalAmount, status, lines } = await req.json();
 
-    if (!projectId || !orderNumber || !customerName) {
+    if (!projectId || !orderNumber || !customerId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -75,22 +75,23 @@ export async function POST(req) {
     const salesOrder = await prisma.salesOrder.create({
       data: {
         orderNumber,
-        customerName,
+        customerId: parseInt(customerId),
         orderDate: orderDate ? new Date(orderDate) : new Date(),
         totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
-        status: status || 'Draft',
+        status: status || 'draft',
         projectId: parseInt(projectId),
+        createdBy: user.id,
         lines: lines ? {
           create: lines.map(line => ({
             description: line.description,
             quantity: parseFloat(line.quantity),
-            unitPrice: parseFloat(line.unitPrice),
-            amount: parseFloat(line.amount)
+            unitPrice: parseFloat(line.unitPrice)
           }))
         } : undefined
       },
       include: {
         project: true,
+        customer: true,
         lines: true
       }
     });
