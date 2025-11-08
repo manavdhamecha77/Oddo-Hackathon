@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/roleGuard";
 import { NextResponse } from "next/server";
+import { sendRealtimeUpdate } from "@/app/api/events/route";
 
 // GET all vendor bills
 export async function GET(req) {
@@ -140,6 +141,16 @@ export async function POST(req) {
         },
       },
     });
+
+    // Broadcast real-time update
+    sendRealtimeUpdate(user.companyId, 'vendor_bill_created', {
+      id: vendorBill.id,
+      billNumber: vendorBill.billNumber,
+      projectId: vendorBill.projectId,
+      vendor: vendorBill.vendor,
+      totalAmount: vendorBill.totalAmount,
+      status: vendorBill.status
+    })
 
     return NextResponse.json(vendorBill, { status: 201 });
   } catch (error) {

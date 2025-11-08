@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/roleGuard";
 import { NextResponse } from "next/server";
+import { sendRealtimeUpdate } from "@/app/api/events/route";
 
 // GET all sales orders
 export async function GET(req) {
@@ -136,6 +137,16 @@ export async function POST(req) {
         },
       },
     });
+
+    // Broadcast real-time update
+    sendRealtimeUpdate(user.companyId, 'sales_order_created', {
+      id: salesOrder.id,
+      orderNumber: salesOrder.orderNumber,
+      projectId: salesOrder.projectId,
+      customer: salesOrder.customer,
+      totalAmount: salesOrder.totalAmount,
+      status: salesOrder.status
+    })
 
     return NextResponse.json(salesOrder, { status: 201 });
   } catch (error) {
