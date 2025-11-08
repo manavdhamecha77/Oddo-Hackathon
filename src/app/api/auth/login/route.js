@@ -7,38 +7,55 @@ const prisma = new PrismaClient();
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function POST(req) {
-  const { companyId, email, password } = await req.json();
+  try {
+    const { companyId, email, password } = await req.json();
 
-  if (!companyId || !email || !password) {
-    return NextResponse.json({ error: "Company ID, email, and password are required" }, { status: 400 });
+    if (!companyId || !email || !password) {
+      return NextResponse.json({ error: "Company ID, email, and password are required" }, { status: 400 });
+    }
+
+    console.log('Login attempt:', { companyId, email });
+
+    // Find user with company relation
+    const user = await prisma.user.findUnique({ 
+      where: { email }, 
+      include: { role: true, company: true }
+    });
+
+    if (!user) {
+      console.log('User not found:', email);
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    // Validate password
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
+      console.log('Invalid password for user:', email);
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    // Verify company ID matches (compare string companyId from company table)
+    if (user.company.companyId !== companyId) {
+      console.log('Company ID mismatch:', { provided: companyId, actual: user.company.companyId });
+      return NextResponse.json({ error: "Invalid company ID" }, { status: 401 });
+    }
+
+    console.log('Login successful for:', email);
+
+    const token = await new SignJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role?.name,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("1d")
+      .sign(secret);
+
+    const res = NextResponse.json({ message: "Login successful", token });
+    res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
+    return res;
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  // Find user with company relation
-  const user = await prisma.user.findUnique({ 
-    where: { email }, 
-    include: { role: true }
-  });
-
-  // Validate user exists, password matches, and company ID matches
-  if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-  }
-
-  // Verify company ID matches
-  if (user.companyId !== companyId) {
-    return NextResponse.json({ error: "Invalid company ID" }, { status: 401 });
-  }
-
-  const token = await new SignJWT({
-    id: user.id,
-    email: user.email,
-    role: user.role?.name,
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("1d")
-    .sign(secret);
-
-  const res = NextResponse.json({ message: "Login successful", token });
-  res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
-  return res;
 }
