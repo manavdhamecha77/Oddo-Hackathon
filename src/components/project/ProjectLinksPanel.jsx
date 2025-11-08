@@ -34,6 +34,7 @@ import GenerateInvoiceDialog from '@/components/billing/GenerateInvoiceDialog'
 import CreateSalesOrderModal from '@/components/CreateSalesOrderModal'
 import PurchaseOrderForm from '@/components/forms/PurchaseOrderForm'
 import VendorBillForm from '@/components/forms/VendorBillForm'
+import CustomerInvoiceForm from '@/components/forms/CustomerInvoiceForm'
 
 export default function ProjectLinksPanel({ projectId, userRole }) {
   const [activeTab, setActiveTab] = useState('sales-orders')
@@ -44,6 +45,8 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
   const [selectedPO, setSelectedPO] = useState(null)
   const [showVendorBillForm, setShowVendorBillForm] = useState(false)
   const [selectedVendorBill, setSelectedVendorBill] = useState(null)
+  const [showCustomerInvoiceForm, setShowCustomerInvoiceForm] = useState(false)
+  const [selectedCustomerInvoice, setSelectedCustomerInvoice] = useState(null)
   const [project, setProject] = useState(null)
   
   const [salesOrders, setSalesOrders] = useState([])
@@ -369,7 +372,10 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
             <h3 className="text-lg font-semibold">Customer Invoices</h3>
             <div className="flex gap-2">
               {canCreateFixedInvoice && (
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" onClick={() => {
+                  setSelectedCustomerInvoice(null)
+                  setShowCustomerInvoiceForm(true)
+                }}>
                   <Plus className="w-4 h-4 mr-2" />
                   Fixed Invoice
                 </Button>
@@ -410,7 +416,15 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
                     <TableCell>{formatCurrency(inv.totalAmount)}</TableCell>
                     <TableCell>{getStatusBadge(inv.status)}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedCustomerInvoice(inv)
+                          setShowCustomerInvoiceForm(true)
+                        }}
+                        title="View / Edit"
+                      >
                         <Eye className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -629,6 +643,23 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           onSuccess={() => {
             setShowVendorBillForm(false)
             setSelectedVendorBill(null)
+            fetchAllLinks()
+          }}
+        />
+      )}
+
+      {showCustomerInvoiceForm && (
+        <CustomerInvoiceForm
+          projectId={projectId}
+          existingInvoice={selectedCustomerInvoice}
+          isOpen={showCustomerInvoiceForm}
+          onClose={() => {
+            setShowCustomerInvoiceForm(false)
+            setSelectedCustomerInvoice(null)
+          }}
+          onSuccess={() => {
+            setShowCustomerInvoiceForm(false)
+            setSelectedCustomerInvoice(null)
             fetchAllLinks()
           }}
         />
