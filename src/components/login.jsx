@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 export default function LoginComponent() {
+    const [companyId, setCompanyId] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
@@ -23,7 +24,7 @@ export default function LoginComponent() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ companyId, email, password }),
                 credentials: 'include'
             })
 
@@ -56,12 +57,19 @@ export default function LoginComponent() {
                         <Link href="/" aria-label="go home">
                             <LogoIcon />
                         </Link>
-                        <h1 className="mb-1 mt-4 text-xl font-semibold">Sign In to Tailark</h1>
+                        <h1 className="mb-1 mt-4 text-xl font-semibold">Sign In to OneFlow</h1>
                         <p className="text-sm">Welcome back! Sign in to continue</p>
                     </div>
 
 
                     <div className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="companyId" className="block text-sm">
+                                Company ID
+                            </Label>
+                            <Input type="text" required name="companyId" id="companyId" value={companyId} onChange={(e) => setCompanyId(e.target.value)} />
+                        </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="email" className="block text-sm">
                                 Email
@@ -69,17 +77,10 @@ export default function LoginComponent() {
                             <Input type="email" required name="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                         </div>
 
-                        <div className="space-y-0.5">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="pwd" className="text-sm">
-                                    Password
-                                </Label>
-                                <Button asChild variant="link" size="sm">
-                                    <Link href="#" className="link intent-info variant-ghost text-sm">
-                                        Forgot your Password ?
-                                    </Link>
-                                </Button>
-                            </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="pwd" className="text-sm">
+                                Password
+                            </Label>
                             <Input
                                 type="password"
                                 required
@@ -99,7 +100,7 @@ export default function LoginComponent() {
                     <p className="text-accent-foreground text-center text-sm">
                         Don't have an account ?
                         <Button asChild variant="link" className="px-2">
-                            <Link href="#">Create account</Link>
+                            <Link href="/register">Create account</Link>
                         </Button>
                     </p>
                 </div>

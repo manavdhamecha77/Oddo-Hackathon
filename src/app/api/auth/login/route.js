@@ -16,7 +16,7 @@ export async function POST(req) {
   // Find user with company relation
   const user = await prisma.user.findUnique({ 
     where: { email }, 
-    include: { role: true, company: true } 
+    include: { role: true }
   });
 
   // Validate user exists, password matches, and company ID matches
@@ -25,7 +25,7 @@ export async function POST(req) {
   }
 
   // Verify company ID matches
-  if (user.company.companyId !== companyId) {
+  if (user.companyId !== companyId) {
     return NextResponse.json({ error: "Invalid company ID" }, { status: 401 });
   }
 
