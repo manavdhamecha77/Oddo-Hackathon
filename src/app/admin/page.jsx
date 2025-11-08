@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Users, Mail, CheckCircle, Clock } from "lucide-react";
+import { Users, Mail, CheckCircle, Clock, ArrowLeft, Shield, Copy, Send, Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import Link from "next/link";
 
 export default function AdminPage() {
   const [user, setUser] = useState(null);
@@ -80,14 +82,17 @@ export default function AdminPage() {
         const msg = data.emailSent 
           ? "User created and credentials sent to their email!" 
           : "User created! (Email failed - please share credentials manually)";
+        toast.success(msg);
         setMessage(msg);
         setCreatedUser(data.user);
         setInviteForm({ email: "", roleId: "" });
         fetchInvitations();
       } else {
+        toast.error(data.error || "Failed to create user");
         setMessage(data.error || "Failed to create user");
       }
     } catch (error) {
+      toast.error("An error occurred");
       setMessage("An error occurred");
     } finally {
       setLoading(false);
@@ -96,7 +101,7 @@ export default function AdminPage() {
 
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
-    alert(`${label} copied to clipboard!`);
+    toast.success(`${label} copied to clipboard!`);
   };
 
   const stats = [
@@ -130,54 +135,92 @@ export default function AdminPage() {
     },
   ];
 
-  if (!user) return <div className="p-8"><p>Loading...</p></div>;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-muted/20">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user.name || user.email}! Manage your team and invitations.
-        </p>
-      </div>
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-muted/20">
+      <div className="max-w-7xl mx-auto p-8">
+        {/* Header with Back Button */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-3 bg-primary/10 rounded-xl">
+              <Shield className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold">Admin Panel</h1>
+              <p className="text-muted-foreground mt-1">
+                Welcome back, {user.name || user.email}! Manage your team and invitations.
+              </p>
+            </div>
+          </div>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-card border rounded-xl p-6">
+          <div key={index} className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+              <div className={`p-2 rounded-lg bg-muted/50`}>
+                <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              </div>
             </div>
             <div className="text-3xl font-bold mb-1">{stat.value}</div>
-            <p className="text-sm text-muted-foreground">{stat.change}</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              {stat.change}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Invite User Section */}
-      <div className="bg-card border rounded-xl p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-6">Invite New User</h2>
-        <form onSubmit={handleInvite} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-card border rounded-xl p-6 mb-8 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <Send className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-semibold">Invite New User</h2>
+        </div>
+        <form onSubmit={handleInvite} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-2">Email Address</label>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Mail className="w-4 h-4 text-muted-foreground" />
+                Email Address
+              </label>
               <input
                 type="email"
                 value={inviteForm.email}
                 onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2.5 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 placeholder="user@example.com"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Role</label>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+                Role
+              </label>
               <select
                 value={inviteForm.roleId}
                 onChange={(e) => setInviteForm({ ...inviteForm, roleId: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-2.5 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 required
               >
                 <option value="">Select a role</option>
@@ -189,9 +232,18 @@ export default function AdminPage() {
               </select>
             </div>
           </div>
-          <Button type="submit" disabled={loading}>
-            <Mail className="w-4 h-4 mr-2" />
-            {loading ? "Sending..." : "Send Invitation"}
+          <Button type="submit" disabled={loading} className="gap-2" size="lg">
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sending Invitation...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                Send Invitation
+              </>
+            )}
           </Button>
         </form>
 
@@ -202,53 +254,78 @@ export default function AdminPage() {
         )}
 
         {createdUser && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-semibold mb-3 text-blue-900">User Credentials (share these with the user):</p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-blue-800 font-medium">Company ID</label>
-                <div className="flex gap-2 mt-1">
+          <div className="mt-6 p-6 bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">User Created Successfully!</p>
+            </div>
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">Share these credentials with the new user:</p>
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
+                <label className="text-xs text-blue-800 dark:text-blue-300 font-medium mb-2 block">Company ID</label>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={createdUser.companyId}
                     readOnly
-                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm font-mono"
+                    className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-800 text-sm font-mono select-all"
                   />
-                  <Button onClick={() => copyToClipboard(createdUser.companyId, "Company ID")} variant="outline" size="sm">
+                  <Button 
+                    onClick={() => copyToClipboard(createdUser.companyId, "Company ID")} 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Copy className="w-3 h-3" />
                     Copy
                   </Button>
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-blue-800 font-medium">Email</label>
-                <div className="flex gap-2 mt-1">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
+                <label className="text-xs text-blue-800 dark:text-blue-300 font-medium mb-2 block">Email</label>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={createdUser.email}
                     readOnly
-                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm"
+                    className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-800 text-sm select-all"
                   />
-                  <Button onClick={() => copyToClipboard(createdUser.email, "Email")} variant="outline" size="sm">
+                  <Button 
+                    onClick={() => copyToClipboard(createdUser.email, "Email")} 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Copy className="w-3 h-3" />
                     Copy
                   </Button>
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-blue-800 font-medium">Password (temporary)</label>
-                <div className="flex gap-2 mt-1">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-blue-100 dark:border-blue-900">
+                <label className="text-xs text-blue-800 dark:text-blue-300 font-medium mb-2 block">Password (temporary)</label>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     value={createdUser.password}
                     readOnly
-                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm font-mono"
+                    className="flex-1 px-3 py-2 border rounded-lg bg-gray-50 dark:bg-gray-800 text-sm font-mono select-all"
                   />
-                  <Button onClick={() => copyToClipboard(createdUser.password, "Password")} variant="outline" size="sm">
+                  <Button 
+                    onClick={() => copyToClipboard(createdUser.password, "Password")} 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Copy className="w-3 h-3" />
                     Copy
                   </Button>
                 </div>
               </div>
-              <div className="text-xs text-blue-700 mt-2">
-                📧 Credentials have been sent to the user&apos;s email. You can also share them manually using the copy buttons above.
+              <div className="flex items-start gap-2 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-xs text-blue-800 dark:text-blue-200">
+                <Mail className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  Credentials have been sent to the user&apos;s email. You can also share them manually using the copy buttons above.
+                </span>
               </div>
             </div>
           </div>
@@ -256,49 +333,64 @@ export default function AdminPage() {
       </div>
 
       {/* Invitations List */}
-      <div className="bg-card border rounded-xl">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold">Invitations History</h2>
+      <div className="bg-card border rounded-xl shadow-sm">
+        <div className="p-6 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold">Invitations History</h2>
+          </div>
         </div>
         {invitations.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <Mail className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No invitations sent yet.</p>
+          <div className="p-12 text-center text-muted-foreground">
+            <div className="inline-flex p-4 bg-muted rounded-full mb-4">
+              <Mail className="w-12 h-12 opacity-50" />
+            </div>
+            <p className="text-lg font-medium mb-1">No invitations sent yet</p>
             <p className="text-sm">Send your first invitation above to get started.</p>
           </div>
         ) : (
           <div className="divide-y">
             {invitations.map((inv) => (
-              <div key={inv.id} className="p-6 hover:bg-muted/50 transition-colors">
+              <div key={inv.id} className="p-6 hover:bg-muted/30 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold mb-1">{inv.email}</h3>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {inv.role.name.replace(/_/g, " ")}
-                    </p>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Mail className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">{inv.email}</h3>
+                        <p className="text-sm text-muted-foreground capitalize flex items-center gap-2">
+                          <Shield className="w-3 h-3" />
+                          {inv.role.name.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-8">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Status</p>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-2">Status</p>
                       <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold ${
                           inv.status === "accepted"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                             : inv.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-800"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
+                        {inv.status === "accepted" && <CheckCircle className="w-3 h-3" />}
+                        {inv.status === "pending" && <Clock className="w-3 h-3" />}
                         {inv.status}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Expires</p>
-                      <span className="text-sm">{new Date(inv.expiresAt).toLocaleDateString()}</span>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-2">Expires</p>
+                      <span className="text-sm font-medium">{new Date(inv.expiresAt).toLocaleDateString()}</span>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Created</p>
-                      <span className="text-sm">{new Date(inv.createdAt).toLocaleDateString()}</span>
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-2">Created</p>
+                      <span className="text-sm font-medium">{new Date(inv.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -306,6 +398,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

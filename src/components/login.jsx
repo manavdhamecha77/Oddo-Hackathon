@@ -38,8 +38,16 @@ export default function LoginComponent() {
             // backend sets cookie; optionally store token in localStorage for client use
             if (data.token) localStorage.setItem('token', data.token)
 
-            // redirect to dashboard
-            router.push('/dashboard')
+            // Fetch user role and redirect to role-based dashboard
+            const meRes = await fetch('/api/auth/me', { credentials: 'include' })
+            if (meRes.ok) {
+                const userData = await meRes.json()
+                const role = userData.role || 'team_member'
+                router.push(`/${role}/dashboard`)
+            } else {
+                // Fallback to generic dashboard
+                router.push('/dashboard')
+            }
         } catch (err) {
             setError('Network error')
             setLoading(false)

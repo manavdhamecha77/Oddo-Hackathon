@@ -8,7 +8,13 @@ export async function GET(req) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // CRITICAL: Filter by companyId to prevent cross-company data access
     const projects = await prisma.project.findMany({
+      where: {
+        projectManager: {
+          companyId: user.companyId
+        }
+      },
       include: {
         projectManager: {
           select: { id: true, firstName: true, lastName: true, email: true }
@@ -45,6 +51,16 @@ export async function POST(req) {
 
     if (!name || !startDate || !dueDate) {
       return NextResponse.json({ error: "Missing required fields: name, startDate, dueDate" }, { status: 400 });
+    }
+
+    // CRITICAL: Ensure project manager belongs to the same company
+    const projectManager = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { companyId: true }
+    });
+
+    if (!projectManager || projectManager.companyId !== user.companyId) {
+      return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
     }
 
     const project = await prisma.project.create({
