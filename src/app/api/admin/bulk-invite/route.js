@@ -15,12 +15,13 @@ function parseCSV(text) {
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   
   // Validate headers
-  if (!headers.includes('name') || !headers.includes('email')) {
-    throw new Error('CSV must contain "name" and "email" columns');
+  if (!headers.includes('name') || !headers.includes('email') || !headers.includes('role')) {
+    throw new Error('CSV must contain "name", "email", and "role" columns');
   }
 
   const nameIndex = headers.indexOf('name');
   const emailIndex = headers.indexOf('email');
+  const roleIndex = headers.indexOf('role');
 
   const users = [];
   for (let i = 1; i < lines.length; i++) {
@@ -30,14 +31,15 @@ function parseCSV(text) {
     const values = line.split(',').map(v => v.trim());
     const fullName = values[nameIndex];
     const email = values[emailIndex];
+    const role = values[roleIndex];
 
-    if (fullName && email) {
+    if (fullName && email && role) {
       // Split name into firstName and lastName
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      users.push({ firstName, lastName, email, fullName });
+      users.push({ firstName, lastName, email, role, fullName });
     }
   }
 
@@ -84,14 +86,14 @@ export async function POST(req) {
       return NextResponse.json({ error: "No valid users found in CSV" }, { status: 400 });
     }
 
-    // Get default role (team_member)
-    const defaultRole = await prisma.role.findFirst({
-      where: { name: "team_member" }
+    // Get all available roles
+    const roles = await prisma.role.findMany();
+    const roleMap = {};
+    roles.forEach(role => {
+      roleMap[role.name.toLowerCase()] = role.id;
+      // Also map display names (e.g., "project_manager" -> "project manager")
+      roleMap[role.name.toLowerCase().replace(/_/g, ' ')] = role.id;
     });
-
-    if (!defaultRole) {
-      return NextResponse.json({ error: "Default role not found" }, { status: 500 });
-    }
 
     // Process each user
     const results = {
@@ -115,6 +117,16 @@ export async function POST(req) {
           continue;
         }
 
+        // Get role ID from role name
+        const roleName = userData.role.toLowerCase();
+        const roleId = roleMap[roleName];
+
+        if (!roleId) {
+          results.failed++;
+          results.errors.push(`${userData.email}: Invalid role "${userData.role}". Valid roles: project_manager, team_member, sales_finance`);
+          continue;
+        }
+
         // Generate random password
         const randomPassword = generateRandomPassword(12);
         const passwordHash = await bcrypt.hash(randomPassword, 10);
@@ -129,7 +141,7 @@ export async function POST(req) {
               lastName: userData.lastName,
               passwordHash,
               companyId: user.companyId,
-              roleId: defaultRole.id,
+              roleId: roleId,
             },
             include: {
               role: true,
@@ -145,7 +157,7 @@ export async function POST(req) {
             data: {
               email: userData.email,
               companyId: user.companyId,
-              roleId: defaultRole.id,
+              roleId: roleId,
               invitedBy: user.id,
               expiresAt,
               status: "accepted",

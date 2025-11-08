@@ -273,7 +273,7 @@ export default function AdminPage() {
           </div>
           <div className="mb-4 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
             <p className="font-medium mb-1">CSV Upload Format:</p>
-            <p>Upload a CSV file with two columns: <code className="bg-background px-1 py-0.5 rounded">name</code> and <code className="bg-background px-1 py-0.5 rounded">email</code>. All users will be created with the "team_member" role and credentials will be emailed automatically.</p>
+            <p>Upload a CSV file with three columns: <code className="bg-background px-1 py-0.5 rounded">name</code>, <code className="bg-background px-1 py-0.5 rounded">email</code>, and <code className="bg-background px-1 py-0.5 rounded">role</code>. Valid roles: <code className="bg-background px-1 py-0.5 rounded">project_manager</code>, <code className="bg-background px-1 py-0.5 rounded">team_member</code>, <code className="bg-background px-1 py-0.5 rounded">sales_finance</code>. Credentials will be emailed automatically.</p>
           </div>
           <form onSubmit={handleInvite} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
