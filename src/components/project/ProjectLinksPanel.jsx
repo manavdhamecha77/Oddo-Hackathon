@@ -45,12 +45,31 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
 
   // Role-based permissions (normalize role to uppercase for comparison)
   const normalizedRole = userRole?.toUpperCase()
+  
+  // Access Control:
+  // - Team Members: NO ACCESS to Links Panel (cannot view)
+  // - Project Manager: FULL VIEW access
+  // - Sales & Finance: FULL VIEW access
+  // - Admin: FULL VIEW access (universal)
   const canViewLinks = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(normalizedRole)
+  
+  // Action Permissions:
+  // Sales Orders - Created by Sales & Finance (sets expected revenue)
   const canCreateSO = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  
+  // Purchase Orders - Created by PM or Sales & Finance (plans vendor costs)
   const canCreatePO = ['ADMIN', 'PROJECT_MANAGER', 'SALES_FINANCE'].includes(normalizedRole)
+  
+  // Vendor Bills - Created by Sales & Finance (actual vendor costs)
   const canCreateVendorBill = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  
+  // Fixed Invoices - Created by Sales & Finance (milestone billing)
   const canCreateFixedInvoice = ['ADMIN', 'SALES_FINANCE'].includes(normalizedRole)
+  
+  // Smart Invoices - Created by PM (from timesheets/expenses - Billing Engine)
   const canCreateSmartInvoice = ['ADMIN', 'PROJECT_MANAGER'].includes(normalizedRole)
+  
+  // Expense Approval - Only PM can approve Team Member expenses
   const canApproveExpense = ['ADMIN', 'PROJECT_MANAGER'].includes(normalizedRole)
 
   useEffect(() => {
@@ -83,21 +102,27 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
     }
   }
 
-  const handleApproveExpense = async (expenseId) => {
+  const handleApproveExpense = async (expenseId, action = 'approve') => {
     try {
       const response = await fetch(`/api/expenses/${expenseId}/approve`, {
-        method: 'PATCH'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
       })
 
       if (response.ok) {
-        toast.success('Expense approved successfully')
+        const message = action === 'approve' 
+          ? 'Expense approved successfully' 
+          : 'Expense rejected'
+        toast.success(message)
         fetchAllLinks()
       } else {
-        toast.error('Failed to approve expense')
+        const error = await response.json()
+        toast.error(error.error || `Failed to ${action} expense`)
       }
     } catch (error) {
-      console.error('Error approving expense:', error)
-      toast.error('Error approving expense')
+      console.error(`Error ${action}ing expense:`, error)
+      toast.error(`Error ${action}ing expense`)
     }
   }
 
@@ -138,16 +163,9 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
     )
   }
 
+  // Team Members cannot view the Links Panel at all
   if (!canViewLinks) {
-    return (
-      <div className="bg-card border rounded-xl p-12 text-center">
-        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
-        <p className="text-muted-foreground">
-          You don't have permission to view financial documents for this project.
-        </p>
-      </div>
-    )
+    return null // Don't render anything for Team Members
   }
 
   if (isLoading) {
@@ -400,15 +418,26 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           )}
         </TabsContent>
 
-        {/* Expenses Tab */}
+        {/* Expenses Tab - Team Members submit, PM approves */}
         <TabsContent value="expenses">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Expenses</h3>
+            <div>
+              <h3 className="text-lg font-semibold">Expenses</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Team expenses submitted for approval and billing
+              </p>
+            </div>
+            {canApproveExpense && expenses.filter(e => e.status === 'submitted').length > 0 && (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                {expenses.filter(e => e.status === 'submitted').length} Pending Approval
+              </Badge>
+            )}
           </div>
           {expenses.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No expenses linked to this project</p>
+              <p className="text-xs mt-2">Team members can submit expenses through the Expenses module</p>
             </div>
           ) : (
             <Table>
@@ -416,36 +445,64 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
                 <TableRow>
                   <TableHead>Expense #</TableHead>
                   <TableHead>Employee</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>Billable</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {expenses.map((exp) => (
-                  <TableRow key={exp.id}>
+                  <TableRow key={exp.id} className={exp.status === 'submitted' ? 'bg-amber-50/50 dark:bg-amber-900/5' : ''}>
                     <TableCell className="font-medium">{exp.expenseNumber}</TableCell>
-                    <TableCell>{exp.user?.firstName} {exp.user?.lastName}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{exp.user?.firstName} {exp.user?.lastName}</p>
+                        <p className="text-xs text-muted-foreground">{exp.user?.role?.name}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{exp.description}</TableCell>
                     <TableCell>{exp.category}</TableCell>
                     <TableCell>{formatDate(exp.expenseDate)}</TableCell>
-                    <TableCell>{formatCurrency(exp.amount)}</TableCell>
-                    <TableCell>{getStatusBadge(exp.status)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(exp.amount)}</TableCell>
                     <TableCell>
-                      {canApproveExpense && exp.status === 'submitted' ? (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleApproveExpense(exp.id)}
-                        >
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        </Button>
+                      {exp.isBillable ? (
+                        <Badge variant="outline" className="text-green-600 border-green-300">Billable</Badge>
                       ) : (
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <Badge variant="outline" className="text-gray-500 border-gray-300">Non-billable</Badge>
                       )}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(exp.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {canApproveExpense && exp.status === 'submitted' ? (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleApproveExpense(exp.id, 'approve')}
+                              title="Approve expense"
+                            >
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleApproveExpense(exp.id, 'reject')}
+                              title="Reject expense"
+                            >
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="ghost" size="sm" title="View details">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

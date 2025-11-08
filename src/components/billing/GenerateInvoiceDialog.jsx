@@ -39,16 +39,21 @@ export default function GenerateInvoiceDialog({ projectId, isOpen, onClose, onSu
     try {
       setIsLoading(true)
       
-      // Fetch unbilled timesheets
+      // Fetch unbilled timesheets (billable and not yet billed)
       const timesheetsResponse = await fetch(`/api/timesheets?projectId=${projectId}&billed=false`)
       const timesheetsData = await timesheetsResponse.json()
       
-      // Fetch unbilled expenses
+      // Fetch APPROVED, unbilled, and billable expenses only
+      // Only approved expenses can be billed to customers
       const expensesResponse = await fetch(`/api/expenses?projectId=${projectId}&billed=false`)
       const expensesData = await expensesResponse.json()
       
       setUnbilledTimesheets(Array.isArray(timesheetsData) ? timesheetsData : [])
-      setUnbilledExpenses(Array.isArray(expensesData) ? expensesData : [])
+      // Filter to only show approved and billable expenses
+      const approvedBillableExpenses = Array.isArray(expensesData) 
+        ? expensesData.filter(exp => exp.status === 'approved' && exp.isBillable)
+        : []
+      setUnbilledExpenses(approvedBillableExpenses)
     } catch (error) {
       console.error('Error fetching unbilled items:', error)
       toast.error('Failed to load unbilled items')
@@ -299,11 +304,15 @@ export default function GenerateInvoiceDialog({ projectId, isOpen, onClose, onSu
                       <Receipt className="w-5 h-5 text-green-500" />
                       <h3 className="font-semibold">Unbilled Expenses ({unbilledExpenses.length})</h3>
                     </div>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Only approved and billable expenses appear here. Team members submit expenses, Project Manager approves them.
+                    </p>
                     
                     {unbilledExpenses.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Receipt className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>No unbilled expenses found</p>
+                        <p>No approved, billable, unbilled expenses found</p>
+                        <p className="text-xs mt-2">Expenses must be approved by PM before they can be billed</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
