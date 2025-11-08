@@ -1,18 +1,23 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Users, Mail, CheckCircle, Clock, ArrowLeft, Shield, Copy, Send, Loader2, UserPlus } from "lucide-react";
+import { Users, Mail, CheckCircle, Clock, Shield, Copy, Send, Loader2, UserPlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import Link from "next/link";
 
 export default function AdminPage() {
   const [user, setUser] = useState(null);
-  const [invitations, setInvitations] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [inviteForm, setInviteForm] = useState({ email: "", roleId: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
+  const [userStats, setUserStats] = useState({
+    totalMembers: 0,
+    projectManagers: 0,
+    teamMembers: 0,
+    salesFinance: 0
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -42,16 +47,29 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (user) {
-      fetchInvitations();
+      fetchTeamMembers();
       fetchRoles();
+      fetchUserStats();
     }
   }, [user]);
 
-  const fetchInvitations = async () => {
-    const res = await fetch("/api/admin/invite");
+  const fetchUserStats = async () => {
+    try {
+      const res = await fetch("/api/admin/users/stats");
+      if (res.ok) {
+        const data = await res.json();
+        setUserStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user stats:", error);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    const res = await fetch("/api/admin/users");
     if (res.ok) {
       const data = await res.json();
-      setInvitations(data.invitations);
+      setTeamMembers(data.users);
     }
   };
 
@@ -86,7 +104,7 @@ export default function AdminPage() {
         setMessage(msg);
         setCreatedUser(data.user);
         setInviteForm({ email: "", roleId: "" });
-        fetchInvitations();
+        fetchTeamMembers();
       } else {
         toast.error(data.error || "Failed to create user");
         setMessage(data.error || "Failed to create user");
@@ -104,34 +122,57 @@ export default function AdminPage() {
     toast.success(`${label} copied to clipboard!`);
   };
 
+  const handleRevokeUser = async (userId) => {
+    if (!confirm('Are you sure you want to revoke this user? They will be removed from all projects.')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/revoke`, {
+        method: 'POST',
+      });
+      
+      if (res.ok) {
+        toast.success('User revoked successfully');
+        fetchTeamMembers();
+        fetchUserStats();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to revoke user');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    }
+  };
+
   const stats = [
     { 
-      label: "Total Invitations", 
-      value: invitations.length.toString(), 
-      change: "All time", 
-      icon: Mail, 
+      label: "Total Team Members", 
+      value: userStats.totalMembers.toString(), 
+      change: "Active users", 
+      icon: Users, 
       color: "text-blue-500" 
     },
     { 
-      label: "Pending", 
-      value: invitations.filter(inv => inv.status === "pending").length.toString(), 
-      change: "Awaiting acceptance", 
-      icon: Clock, 
-      color: "text-orange-500" 
-    },
-    { 
-      label: "Accepted", 
-      value: invitations.filter(inv => inv.status === "accepted").length.toString(), 
-      change: "Active users", 
-      icon: CheckCircle, 
-      color: "text-green-500" 
+      label: "Project Managers", 
+      value: userStats.projectManagers.toString(), 
+      change: "Managing projects", 
+      icon: Shield, 
+      color: "text-purple-500" 
     },
     { 
       label: "Team Members", 
-      value: invitations.filter(inv => inv.status === "accepted").length.toString(), 
-      change: "In your company", 
+      value: userStats.teamMembers.toString(), 
+      change: "In projects", 
       icon: Users, 
-      color: "text-purple-500" 
+      color: "text-green-500" 
+    },
+    { 
+      label: "Sales & Finance", 
+      value: userStats.salesFinance.toString(), 
+      change: "Managing finance", 
+      icon: CheckCircle, 
+      color: "text-orange-500" 
     },
   ];
 
@@ -149,32 +190,6 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-background to-muted/20">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Header with Back Button */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Back to Dashboard</span>
-                <span className="sm:hidden">Back</span>
-              </Link>
-            </Button>
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 sm:p-3 bg-primary/10 rounded-xl">
-              <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Admin Panel</h1>
-              <p className="text-sm sm:text-base text-muted-foreground mt-1 truncate">
-                Welcome back, {user.name || user.email}!
-              </p>
-              <p className="text-sm sm:text-base text-muted-foreground hidden sm:block">
-                Manage your team and invitations.
-              </p>
-            </div>
-          </div>
-        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
@@ -337,66 +352,55 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Invitations List */}
+      {/* Active Team Members */}
       <div className="bg-card border rounded-xl shadow-sm">
         <div className="p-4 sm:p-6 border-b bg-muted/30">
           <div className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-primary shrink-0" />
-            <h2 className="text-lg sm:text-xl font-semibold">Invitations History</h2>
+            <Users className="w-5 h-5 text-primary shrink-0" />
+            <h2 className="text-lg sm:text-xl font-semibold">Active Team Members</h2>
           </div>
         </div>
-        {invitations.length === 0 ? (
+        {teamMembers.length === 0 ? (
           <div className="p-8 sm:p-12 text-center text-muted-foreground">
             <div className="inline-flex p-3 sm:p-4 bg-muted rounded-full mb-4">
-              <Mail className="w-8 h-8 sm:w-12 sm:h-12 opacity-50" />
+              <Users className="w-8 h-8 sm:w-12 sm:h-12 opacity-50" />
             </div>
-            <p className="text-base sm:text-lg font-medium mb-1">No invitations sent yet</p>
-            <p className="text-sm">Send your first invitation above to get started.</p>
+            <p className="text-base sm:text-lg font-medium mb-1">No active team members</p>
+            <p className="text-sm">Invite your first team member above to get started.</p>
           </div>
         ) : (
           <div className="divide-y">
-            {invitations.map((inv) => (
-              <div key={inv.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-all duration-200">
+            {teamMembers.map((member) => (
+              <div key={member.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-all duration-200">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base sm:text-lg truncate">{inv.email}</h3>
+                        <h3 className="font-semibold text-base sm:text-lg truncate">{member.email}</h3>
                         <p className="text-xs sm:text-sm text-muted-foreground capitalize flex items-center gap-2">
                           <Shield className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{inv.role.name.replace(/_/g, " ")}</span>
+                          <span className="truncate">{member.role.name.replace(/_/g, " ")}</span>
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 overflow-x-auto">
-                    <div className="text-center shrink-0">
-                      <p className="text-xs text-muted-foreground mb-2">Status</p>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${
-                          inv.status === "accepted"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                            : inv.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
-                        }`}
-                      >
-                        {inv.status === "accepted" && <CheckCircle className="w-3 h-3" />}
-                        {inv.status === "pending" && <Clock className="w-3 h-3" />}
-                        <span className="hidden sm:inline">{inv.status}</span>
-                      </span>
-                    </div>
-                    <div className="text-center shrink-0">
-                      <p className="text-xs text-muted-foreground mb-2">Expires</p>
-                      <span className="text-xs sm:text-sm font-medium whitespace-nowrap">{new Date(inv.expiresAt).toLocaleDateString()}</span>
-                    </div>
+                  <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
                     <div className="text-center shrink-0">
                       <p className="text-xs text-muted-foreground mb-2">Created</p>
-                      <span className="text-xs sm:text-sm font-medium whitespace-nowrap">{new Date(inv.createdAt).toLocaleDateString()}</span>
+                      <span className="text-xs sm:text-sm font-medium whitespace-nowrap">{new Date(member.createdAt).toLocaleDateString()}</span>
                     </div>
+                    <Button
+                      onClick={() => handleRevokeUser(member.id)}
+                      variant="destructive"
+                      size="sm"
+                      className="gap-2 shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Remove</span>
+                    </Button>
                   </div>
                 </div>
               </div>

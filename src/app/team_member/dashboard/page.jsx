@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
 
 export default function TeamMemberDashboard() {
   const [user, setUser] = useState(null);

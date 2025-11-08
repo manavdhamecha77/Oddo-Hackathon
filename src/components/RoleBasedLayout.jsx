@@ -41,7 +41,6 @@ const roleNavItems = {
         { name: 'Dashboard', href: '/project_manager/dashboard', icon: LayoutDashboard },
         { name: 'Analytics', href: '/project_manager/dashboard/analytics', icon: BarChart3 },
         { name: 'Projects', href: '/project_manager/dashboard/projects', icon: FolderKanban },
-        { name: 'Timesheets', href: '/project_manager/dashboard/timesheets', icon: Clock },
         { name: 'Expenses', href: '/project_manager/dashboard/expenses', icon: Receipt },
         { name: 'Invoices', href: '/project_manager/dashboard/invoices', icon: CreditCard },
     ],
