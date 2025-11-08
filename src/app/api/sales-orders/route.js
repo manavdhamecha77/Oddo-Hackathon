@@ -1,44 +1,53 @@
-import { getUserFromRequest } from "@/lib/roleGuard";
 import { prisma } from "@/lib/prisma";
+import { getUserFromRequest } from "@/lib/roleGuard";
 import { NextResponse } from "next/server";
 
 // GET all sales orders
 export async function GET(req) {
   try {
-    const user = await getUserFromRequest(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const projectId = searchParams.get('projectId');
-
-    // Build where clause
-    const whereClause = {
-      project: {
-        projectManager: {
-          companyId: user.companyId
-        }
-      }
-    };
-
-    // Filter by project if provided
-    if (projectId) {
-      whereClause.projectId = parseInt(projectId);
+    const userToken = await getUserFromRequest(req);
+    if (!userToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // CRITICAL: Filter by companyId to prevent cross-company data access
+    const user = await prisma.user.findUnique({
+      where: { id: userToken.id },
+      include: { role: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Only sales_finance role can access sales orders
+    if (user.role.name !== "sales_finance" && user.role.name !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     const salesOrders = await prisma.salesOrder.findMany({
-      where: whereClause,
       include: {
         project: true,
-        lines: true
+        customer: true,
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        lines: {
+          include: {
+            product: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(salesOrders);
   } catch (error) {
-    console.error('Error fetching sales orders:', error);
+    console.error("Error fetching sales orders:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -46,58 +55,81 @@ export async function GET(req) {
 // POST create new sales order
 export async function POST(req) {
   try {
-    const user = await getUserFromRequest(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    // Check role
-    if (!['PROJECT_MANAGER', 'SALES_FINANCE', 'ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const userToken = await getUserFromRequest(req);
+    if (!userToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { projectId, orderNumber, customerName, orderDate, totalAmount, status, lines } = await req.json();
-
-    if (!projectId || !orderNumber || !customerName) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
-    // CRITICAL: Verify project belongs to user's company
-    const project = await prisma.project.findUnique({
-      where: { id: parseInt(projectId) },
-      include: {
-        projectManager: { select: { companyId: true } }
-      }
+    const user = await prisma.user.findUnique({
+      where: { id: userToken.id },
+      include: { role: true },
     });
 
-    if (!project || project.projectManager.companyId !== user.companyId) {
-      return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Only sales_finance role can create sales orders
+    if (user.role.name !== "sales_finance" && user.role.name !== "admin") {
+      return NextResponse.json({ error: "Access denied: Sales & Finance role required" }, { status: 403 });
+    }
+
+    const { projectId, customerId, orderDate, status, notes, lines, totalAmount } = await req.json();
+
+    if (!customerId) {
+      return NextResponse.json({ error: "Customer is required" }, { status: 400 });
+    }
+
+    if (!lines || lines.length === 0) {
+      return NextResponse.json({ error: "At least one order line is required" }, { status: 400 });
+    }
+
+    // Generate order number
+    const orderCount = await prisma.salesOrder.count();
+    const orderNumber = `SO-${String(orderCount + 1).padStart(5, '0')}`;
+
+    // Create sales order with lines
     const salesOrder = await prisma.salesOrder.create({
       data: {
         orderNumber,
-        customerName,
-        orderDate: orderDate ? new Date(orderDate) : new Date(),
-        totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
-        status: status || 'Draft',
-        projectId: parseInt(projectId),
-        lines: lines ? {
+        projectId: projectId ? parseInt(projectId) : null,
+        customerId: parseInt(customerId),
+        orderDate: new Date(orderDate),
+        status: status || "draft",
+        totalAmount: parseFloat(totalAmount),
+        notes: notes || null,
+        createdBy: user.id,
+        lines: {
           create: lines.map(line => ({
+            productId: line.productId ? parseInt(line.productId) : null,
             description: line.description,
             quantity: parseFloat(line.quantity),
             unitPrice: parseFloat(line.unitPrice),
-            amount: parseFloat(line.amount)
-          }))
-        } : undefined
+          })),
+        },
       },
       include: {
         project: true,
-        lines: true
-      }
+        customer: true,
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        lines: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(salesOrder, { status: 201 });
   } catch (error) {
-    console.error('Error creating sales order:', error);
+    console.error("Error creating sales order:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

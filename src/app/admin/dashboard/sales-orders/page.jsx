@@ -9,10 +9,31 @@ export default function SalesOrdersPage() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
-    fetchSalesOrders()
+    checkUserRole()
   }, [])
+
+  const checkUserRole = async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      if (!res.ok) {
+        window.location.href = '/login'
+        return
+      }
+      const userData = await res.json()
+      if (userData.role !== 'sales_finance' && userData.role !== 'admin') {
+        toast.error('Access denied: Sales & Finance role required')
+        window.location.href = '/dashboard'
+        return
+      }
+      setUser(userData)
+      fetchSalesOrders()
+    } catch (error) {
+      window.location.href = '/login'
+    }
+  }
 
   const fetchSalesOrders = async () => {
     try {
