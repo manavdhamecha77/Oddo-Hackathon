@@ -7,12 +7,26 @@ const prisma = new PrismaClient();
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function POST(req) {
-  const { email, password } = await req.json();
-  const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
+  const { companyId, email, password } = await req.json();
 
-  // Compare against passwordHash (schema uses passwordHash, not password)
+  if (!companyId || !email || !password) {
+    return NextResponse.json({ error: "Company ID, email, and password are required" }, { status: 400 });
+  }
+
+  // Find user with company relation
+  const user = await prisma.user.findUnique({ 
+    where: { email }, 
+    include: { role: true, company: true } 
+  });
+
+  // Validate user exists, password matches, and company ID matches
   if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
+
+  // Verify company ID matches
+  if (user.company.companyId !== companyId) {
+    return NextResponse.json({ error: "Invalid company ID" }, { status: 401 });
   }
 
   const token = await new SignJWT({

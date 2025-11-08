@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/roleGuard";
 import { NextResponse } from "next/server";
+import { generateRandomPassword } from "@/lib/password";
+import bcrypt from "bcrypt";
 
 export async function POST(req) {
   try {
@@ -31,51 +33,61 @@ export async function POST(req) {
       return NextResponse.json({ error: "User with this email already exists" }, { status: 400 });
     }
 
-    // Check if there's already a pending invitation
-    const existingInvitation = await prisma.invitation.findFirst({
-      where: {
-        email,
-        companyId: user.companyId,
-        status: "pending",
-      },
+    // Generate random password
+    const randomPassword = generateRandomPassword(12);
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    // Create user and invitation in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the user immediately
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          companyId: user.companyId,
+          roleId,
+        },
+        include: {
+          role: true,
+          company: true,
+        },
+      });
+
+      // Create invitation record for tracking
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await tx.invitation.create({
+        data: {
+          email,
+          companyId: user.companyId,
+          roleId,
+          invitedBy: user.id,
+          expiresAt,
+          status: "accepted", // Mark as accepted since user is created
+          acceptedAt: new Date(),
+        },
+        include: {
+          role: true,
+          company: true,
+        },
+      });
+
+      return { newUser, invitation };
     });
 
-    if (existingInvitation) {
-      return NextResponse.json({ error: "Invitation already sent to this email" }, { status: 400 });
-    }
-
-    // Create invitation (expires in 7 days)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const invitation = await prisma.invitation.create({
-      data: {
-        email,
-        companyId: user.companyId,
-        roleId,
-        invitedBy: user.id,
-        expiresAt,
-        status: "pending",
-      },
-      include: {
-        role: true,
-        company: true,
-      },
-    });
-
-    // In a real app, send email with invitation link here
-    // const inviteLink = `${process.env.APP_URL}/invite/${invitation.token}`;
-    // await sendEmail(email, inviteLink);
+    // In a real app, send email with credentials here
+    // await sendEmail(email, { companyId, email, password: randomPassword });
 
     return NextResponse.json({
-      message: "Invitation sent successfully",
-      invitation: {
-        id: invitation.id,
-        email: invitation.email,
-        token: invitation.token,
-        role: invitation.role.name,
-        expiresAt: invitation.expiresAt,
-        inviteLink: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invite/${invitation.token}`,
+      message: "User created successfully",
+      user: {
+        id: result.newUser.id,
+        email: result.newUser.email,
+        role: result.newUser.role.name,
+        companyId: result.newUser.company.companyId,
+        companyName: result.newUser.company.name,
+        password: randomPassword, // Send password to admin to share with user
       },
     });
   } catch (error) {
