@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUserFromRequest } from '@/lib/roleGuard';
 import { prisma } from '@/lib/prisma';
 
+// GET /api/projects/[id]/members - Get all members of a project
 export async function GET(req, { params }) {
   try {
     const user = await getUserFromRequest(req);
@@ -12,6 +13,20 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const projectId = parseInt(id);
 
+    // Verify project exists and belongs to user's company
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        projectManager: {
+          companyId: user.companyId
+        }
+      }
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
     const members = await prisma.projectMember.findMany({
       where: { projectId },
       include: {
@@ -21,9 +36,19 @@ export async function GET(req, { params }) {
             firstName: true,
             lastName: true,
             email: true,
+            role: {
+              select: {
+                name: true
+              }
+            },
+            hourlyRate: true,
+            isActive: true
           },
         },
       },
+      orderBy: {
+        assignedAt: 'desc'
+      }
     });
 
     // If no project members, return all users from the same company

@@ -45,7 +45,7 @@ export default function SalesFinanceDashboard() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
+      <div className="p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading dashboard...</p>
@@ -57,69 +57,70 @@ export default function SalesFinanceDashboard() {
   if (!user) return null;
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Sales & Finance Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.name}! Manage orders and finances.</p>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Sales & Finance Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {user?.name}! Manage orders and finances.</p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/sales_finance/dashboard/sales-orders/create">
             <Plus className="w-4 h-4 mr-2" />
-            New Sales Order
+            <span className="hidden sm:inline">New Sales Order</span>
+            <span className="sm:hidden">New Order</span>
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-card border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground">Active Projects</span>
-            <TrendingUp className="w-5 h-5 text-blue-500" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+        <div className="bg-card border rounded-xl p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <span className="text-xs sm:text-sm text-muted-foreground truncate pr-2">Active Projects</span>
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 shrink-0" />
           </div>
-          <div className="text-3xl font-bold mb-1">{stats?.activeProjects || 0}</div>
-          <p className="text-sm text-muted-foreground">In progress</p>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{stats?.activeProjects || 0}</div>
+          <p className="text-xs sm:text-sm text-muted-foreground">In progress</p>
         </div>
 
-        <div className="bg-card border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground">Total Projects</span>
-            <DollarSign className="w-5 h-5 text-green-500" />
+        <div className="bg-card border rounded-xl p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <span className="text-xs sm:text-sm text-muted-foreground truncate pr-2">Total Projects</span>
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 shrink-0" />
           </div>
-          <div className="text-3xl font-bold mb-1">{stats?.totalProjects || 0}</div>
-          <p className="text-sm text-muted-foreground">All time</p>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{stats?.totalProjects || 0}</div>
+          <p className="text-xs sm:text-sm text-muted-foreground">All time</p>
         </div>
 
-        <div className="bg-card border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground">Team Members</span>
-            <Clock className="w-5 h-5 text-purple-500" />
+        <div className="bg-card border rounded-xl p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <span className="text-xs sm:text-sm text-muted-foreground truncate pr-2">Team Members</span>
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500 shrink-0" />
           </div>
-          <div className="text-3xl font-bold mb-1">-</div>
-          <p className="text-sm text-muted-foreground">Coming soon</p>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">-</div>
+          <p className="text-xs sm:text-sm text-muted-foreground">Coming soon</p>
         </div>
 
-        <div className="bg-card border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-muted-foreground">Pending Tasks</span>
-            <AlertCircle className="w-5 h-5 text-orange-500" />
+        <div className="bg-card border rounded-xl p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <span className="text-xs sm:text-sm text-muted-foreground truncate pr-2">Pending Tasks</span>
+            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 shrink-0" />
           </div>
-          <div className="text-3xl font-bold mb-1">-</div>
-          <p className="text-sm text-muted-foreground">Coming soon</p>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">-</div>
+          <p className="text-xs sm:text-sm text-muted-foreground">Coming soon</p>
         </div>
       </div>
 
       <div className="bg-card border rounded-xl">
-        <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Recent Projects</h2>
-          <Button variant="outline" size="sm" asChild>
+        <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <h2 className="text-lg sm:text-xl font-semibold">Recent Projects</h2>
+          <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
             <Link href="/sales_finance/dashboard/invoices">View All</Link>
           </Button>
         </div>
         {projects.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-8 sm:p-12 text-center">
             <p className="text-muted-foreground mb-4">No invoices yet</p>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/sales_finance/dashboard/sales-orders/create">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Project
@@ -132,23 +133,23 @@ export default function SalesFinanceDashboard() {
               <Link
                 key={project.id}
                 href={`/sales_finance/dashboard/projects/${project.id}`}
-                className="p-6 hover:bg-muted/50 transition-colors flex items-center justify-between"
+                className="p-4 sm:p-6 hover:bg-muted/50 transition-colors flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
               >
-                <div className="flex-1">
-                  <h3 className="font-semibold mb-1">{project.name}</h3>
-                  <p className="text-sm text-muted-foreground">{project.description || 'No description'}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold mb-1 truncate">{project.name}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{project.description || 'No description'}</p>
                 </div>
-                <div className="flex items-center gap-8">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Status</p>
-                    <span className="text-sm font-medium capitalize">{project.status?.replace('_', ' ')}</span>
+                <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 overflow-x-auto">
+                  <div className="shrink-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Status</p>
+                    <span className="text-xs sm:text-sm font-medium capitalize whitespace-nowrap">{project.status?.replace('_', ' ')}</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Budget</p>
-                    <span className="text-sm font-semibold">${project.budget?.toLocaleString() || 0}</span>
+                  <div className="shrink-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Budget</p>
+                    <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">${project.budget?.toLocaleString() || 0}</span>
                   </div>
-                  <div className="w-32">
-                    <p className="text-sm text-muted-foreground mb-2">Progress</p>
+                  <div className="w-24 sm:w-32 shrink-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">Progress</p>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className="bg-primary h-2 rounded-full"

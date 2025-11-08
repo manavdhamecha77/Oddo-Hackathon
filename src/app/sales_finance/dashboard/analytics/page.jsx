@@ -119,7 +119,7 @@ export default function AnalyticsPage() {
   const fetchRealtimeData = async () => {
     try {
       const [invoicesRes, expensesRes] = await Promise.all([
-        fetch('/api/invoices'),
+        fetch('/api/customer-invoices'),
         fetch('/api/expenses')
       ])
 
@@ -161,7 +161,7 @@ export default function AnalyticsPage() {
       // Fetch all necessary data
       const [projectsRes, invoicesRes, expensesRes, timesheetsRes] = await Promise.all([
         fetch('/api/projects'),
-        fetch('/api/invoices'),
+        fetch('/api/customer-invoices'),
         fetch('/api/expenses'),
         fetch('/api/timesheets')
       ])

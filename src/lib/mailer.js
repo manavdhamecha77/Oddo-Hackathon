@@ -2,12 +2,10 @@ import nodemailer from 'nodemailer';
 
 // Create transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  service: "gmail",
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASSWORD,
   },
 });
 
@@ -25,7 +23,7 @@ export async function sendWelcomeEmail({ to, companyId, companyName, email, pass
   const loginUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   
   const mailOptions = {
-    from: `"${process.env.SMTP_FROM_NAME || 'OneFlow'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
+    from: `"OneFlow Team" <${process.env.EMAIL_USER}>`,
     to,
     subject: `Welcome to ${companyName} - Your Account Credentials`,
     html: `

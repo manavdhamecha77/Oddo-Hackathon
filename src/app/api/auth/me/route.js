@@ -8,10 +8,22 @@ export async function GET(req) {
 
   const user = await prisma.user.findUnique({
     where: { id: userToken.id },
-    include: { role: true }
+    include: { role: true, company: true }
   });
 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || null;
-  return NextResponse.json({ id: user.id, email: user.email, role: user.role?.name, name });
+  return NextResponse.json({ 
+    id: user.id, 
+    email: user.email, 
+    role: user.role?.name, 
+    name,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    hourlyRate: user.hourlyRate,
+    company: user.company ? {
+      name: user.company.name,
+      companyId: user.company.companyId
+    } : null
+  });
 }
