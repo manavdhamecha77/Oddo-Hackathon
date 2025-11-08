@@ -1,33 +1,46 @@
-import { getUserFromRequest } from "@/lib/roleGuard";
-import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { getUserFromRequest, requireRole } from '@/lib/roleGuard';
+import { prisma } from '@/lib/prisma';
 
-// PUT update task status (for Kanban drag & drop)
-export async function PUT(req, { params }) {
+export async function PATCH(req, { params }) {
   try {
     const user = await getUserFromRequest(req);
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const { taskId } = params;
-    const { status } = await req.json();
-
-    if (!status) {
-      return NextResponse.json({ error: "Status is required" }, { status: 400 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const task = await prisma.task.update({
+    // Only admin or project_manager can update task status
+    if (!requireRole(user, ['admin', 'project_manager'])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { taskId } = await params;
+    const { status } = await req.json();
+
+    // Validate status
+    const validStatuses = ['new', 'in_progress', 'blocked', 'done'];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const updatedTask = await prisma.task.update({
       where: { id: parseInt(taskId) },
       data: { status },
       include: {
-        assignedTo: {
-          select: { id: true, name: true, email: true }
-        }
-      }
+        assignedUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
     });
 
-    return NextResponse.json(task);
+    return NextResponse.json(updatedTask);
   } catch (error) {
     console.error('Error updating task status:', error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update task status' }, { status: 500 });
   }
 }
