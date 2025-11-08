@@ -8,18 +8,18 @@ export async function GET(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const projectId = parseInt(params.id);
+    const { id } = await params;
 
     const tasks = await prisma.task.findMany({
       where: { projectId: parseInt(id) },
       include: {
-        assignedTo: {
-          select: { id: true, name: true, email: true }
+        assignedUser: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         },
         timesheets: {
           include: {
             user: {
-              select: { id: true, name: true, email: true }
+              select: { id: true, firstName: true, lastName: true, email: true }
             }
           }
         }
@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
     const { title, description, status, priority, assignedToId, dueDate } = await req.json();
 
     if (!title) {
@@ -58,8 +58,8 @@ export async function POST(req, { params }) {
         dueDate: dueDate ? new Date(dueDate) : null
       },
       include: {
-        assignedTo: {
-          select: { id: true, name: true, email: true }
+        assignedUser: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         }
       }
     });

@@ -8,18 +8,19 @@ export async function GET(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
 
     const project = await prisma.project.findUnique({
       where: { id: parseInt(id) },
       include: {
-        createdBy: {
-          select: { id: true, name: true, email: true }
+        projectManager: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         },
+        customer: true,
         tasks: {
           include: {
-            assignedTo: {
-              select: { id: true, name: true, email: true }
+            assignedUser: {
+              select: { id: true, firstName: true, lastName: true, email: true }
             },
             timesheets: true
           }
@@ -49,29 +50,31 @@ export async function PUT(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Check if user is PM or Admin
-    if (!['PROJECT_MANAGER', 'ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Check if user is PM or Admin (case-insensitive)
+    const userRole = user.role?.toUpperCase();
+    if (!['PROJECT_MANAGER', 'ADMIN'].includes(userRole)) {
+      console.log('Role check failed. User role:', user.role, 'Normalized:', userRole);
+      return NextResponse.json({ error: `Forbidden: Role '${user.role}' cannot edit projects` }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { name, client, description, startDate, dueDate, budget, status } = await req.json();
 
     const project = await prisma.project.update({
       where: { id: parseInt(id) },
       data: {
         name,
-        client,
         description,
         startDate: startDate ? new Date(startDate) : undefined,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
+        endDate: dueDate ? new Date(dueDate) : undefined,
         budget: budget ? parseFloat(budget) : undefined,
         status
       },
       include: {
-        createdBy: {
-          select: { id: true, name: true, email: true }
-        }
+        projectManager: {
+          select: { id: true, firstName: true, lastName: true, email: true }
+        },
+        customer: true
       }
     });
 
@@ -88,12 +91,14 @@ export async function DELETE(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Check if user is Admin
-    if (user.role !== 'ADMIN') {
-      return NextResponse.json({ error: "Forbidden: Only admins can delete projects" }, { status: 403 });
+    // Check if user is Project Manager or Admin (case-insensitive)
+    const userRole = user.role?.toUpperCase();
+    if (!['PROJECT_MANAGER', 'ADMIN'].includes(userRole)) {
+      console.log('Role check failed. User role:', user.role, 'Normalized:', userRole);
+      return NextResponse.json({ error: `Forbidden: Role '${user.role}' cannot delete projects` }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     await prisma.project.delete({
       where: { id: parseInt(id) }

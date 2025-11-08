@@ -1,14 +1,13 @@
 'use client'
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { use } from 'react'
+import { ProjectKanbanPage } from '@/components/project-kanban-page'
 
 export default function ProjectDetailPage({ params }) {
-  const { id } = params
+  const resolvedParams = use(params)
+  const { id } = resolvedParams
 
-  // Mock data
-  const project = {
+  return <ProjectKanbanPage projectId={id} backLink="/team_member/dashboard/projects" />
+}
     id,
     name: 'Website Redesign',
     client: 'TechCorp',

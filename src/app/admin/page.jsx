@@ -328,8 +328,8 @@ export default function AdminPage() {
               </div>
               <div className="flex items-start gap-2 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-xs text-blue-800 dark:text-blue-200">
                 <Mail className="w-4 h-4 mt-0.5 shrink-0" />
-                <span className="break-words">
-                  Credentials have been sent to the user's email. You can also share them manually using the copy buttons above.
+                <span>
+                  Credentials have been sent to the user&apos;s email. You can also share them manually using the copy buttons above.
                 </span>
               </div>
             </div>

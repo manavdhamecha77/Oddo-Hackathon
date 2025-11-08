@@ -32,12 +32,9 @@ export async function GET(req) {
       include: {
         project: true,
         lines: true,
-        billingTransactions: {
-          include: {
-            timesheet: true,
-            expense: true
-          }
-        }
+        customer: true,
+        salesOrder: true,
+        creator: true
       },
       orderBy: { createdAt: 'desc' }
     });

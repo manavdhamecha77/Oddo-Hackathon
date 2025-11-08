@@ -1,15 +1,35 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import { use, useEffect, useState } from 'react'
+import { ProjectKanbanPage } from '@/components/project-kanban-page'
 import Link from 'next/link'
-import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import LinksPanel from '@/components/billing/LinksPanel'
-import ProjectMembersPanel from '@/components/project/ProjectMembersPanel'
+import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical } from 'lucide-react'
+import LinksPanel from '@/components/links-panel'
 
 export default function ProjectDetailPage({ params }) {
-  const { id } = params
+  const resolvedParams = use(params)
+  const { id } = resolvedParams
+
+ 
   const [userRole, setUserRole] = useState(null)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
+
+  const [project] = useState({
+    name: '',
+    client: '',
+    description: '',
+    revenue: 0,
+    costs: 0,
+    profit: 0,
+    progress: 0,
+  })
+
+  const [tasks] = useState({
+    todo: [],
+    inProgress: [],
+    review: [],
+    done: [],
+  })
 
   useEffect(() => {
     fetchUserRole()
@@ -29,38 +49,6 @@ export default function ProjectDetailPage({ params }) {
     }
   }
 
-  // Mock data
-  const project = {
-    id,
-    name: 'Website Redesign',
-    client: 'TechCorp',
-    description: 'Complete redesign of the company website with modern UI/UX',
-    status: 'In Progress',
-    progress: 65,
-    startDate: '2025-01-15',
-    dueDate: '2025-03-30',
-    revenue: '$45,000',
-    costs: '$32,550',
-    profit: '$12,450'
-  }
-
-  const tasks = {
-    todo: [
-      { id: 1, title: 'Create wireframes', assignee: 'John Doe', priority: 'High' },
-      { id: 2, title: 'Setup development environment', assignee: 'Jane Smith', priority: 'Medium' },
-    ],
-    inProgress: [
-      { id: 3, title: 'Design homepage', assignee: 'John Doe', priority: 'High' },
-      { id: 4, title: 'Implement authentication', assignee: 'Mike Johnson', priority: 'High' },
-    ],
-    review: [
-      { id: 5, title: 'Complete database schema', assignee: 'Sarah Williams', priority: 'Medium' },
-    ],
-    done: [
-      { id: 6, title: 'Project kickoff meeting', assignee: 'John Doe', priority: 'High' },
-      { id: 7, title: 'Requirements gathering', assignee: 'Jane Smith', priority: 'High' },
-    ]
-  }
 
   const getPriorityColor = (priority) => {
     switch(priority) {
@@ -126,19 +114,6 @@ export default function ProjectDetailPage({ params }) {
           <p className="text-2xl font-bold">{project.progress}%</p>
         </div>
       </div>
-
-      {/* Project Team Members */}
-      {isLoadingUser ? (
-        <div className="mb-8 bg-card border rounded-xl p-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        </div>
-      ) : (
-        <div className="mb-8">
-          <ProjectMembersPanel projectId={id} userRole={userRole} />
-        </div>
-      )}
 
       {/* Links Panel with Billing Engine */}
       {isLoadingUser ? (
@@ -255,5 +230,5 @@ export default function ProjectDetailPage({ params }) {
         </div>
       </div>
     </div>
-  )
-}
+    )
+  }
