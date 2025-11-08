@@ -12,6 +12,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
     const billed = searchParams.get('billed');
+    const status = searchParams.get('status');
 
     // Build where clause
     const whereClause = {
@@ -26,8 +27,13 @@ export async function GET(req) {
     }
 
     // Filter by billed status if provided
-    if (billed !== null) {
+    if (billed !== null && billed !== undefined) {
       whereClause.isBilled = billed === 'true';
+    }
+
+    // Filter by status if provided (e.g., 'approved', 'submitted', 'rejected')
+    if (status) {
+      whereClause.status = status;
     }
 
     // CRITICAL: Filter by companyId to prevent cross-company data access

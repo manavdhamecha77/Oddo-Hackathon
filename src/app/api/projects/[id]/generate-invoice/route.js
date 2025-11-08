@@ -66,18 +66,16 @@ export async function POST(req, { params }) {
 
       // 3. Calculate invoice lines from timesheets
       const timesheetLines = timesheets.map(ts => ({
-        description: `Timesheet: ${ts.task.title} - ${ts.user.name} (${ts.hoursSpent}h @ $${ts.billableRate || 0}/h)`,
-        quantity: ts.hoursSpent,
-        unitPrice: ts.billableRate || 0,
-        amount: ts.hoursSpent * (ts.billableRate || 0)
+        description: `Timesheet: ${ts.task.title} - ${ts.user.firstName} ${ts.user.lastName} (${ts.hours}h @ $${ts.hourlyRate || 0}/h)`,
+        quantity: parseFloat(ts.hours),
+        unitPrice: parseFloat(ts.hourlyRate || 0)
       }));
 
-      // 4. Calculate invoice lines from expenses
+      // 4. Calculate invoice lines from expenses (only approved expenses should be here)
       const expenseLines = expenses.map(exp => ({
-        description: `Expense: ${exp.description} - ${exp.user.name}`,
+        description: `Expense: ${exp.description} - ${exp.user.firstName} ${exp.user.lastName}`,
         quantity: 1,
-        unitPrice: exp.amount,
-        amount: exp.amount
+        unitPrice: parseFloat(exp.amount)
       }));
 
       // 5. Combine all invoice lines
@@ -87,47 +85,53 @@ export async function POST(req, { params }) {
         ...additionalLines.map(line => ({
           description: line.description,
           quantity: parseFloat(line.quantity),
-          unitPrice: parseFloat(line.unitPrice),
-          amount: parseFloat(line.amount)
+          unitPrice: parseFloat(line.unitPrice)
         }))
       ];
 
       // 6. Calculate total
-      const totalAmount = allLines.reduce((sum, line) => sum + line.amount, 0);
+      const totalAmount = allLines.reduce((sum, line) => sum + (line.quantity * line.unitPrice), 0);
+
+      // Find or create customer
+      let customer = null
+      if (customerName) {
+        // Try to find existing customer by name
+        customer = await tx.partner.findFirst({
+          where: { 
+            name: customerName,
+            type: { in: ['customer', 'both'] }
+          }
+        })
+        
+        // Create customer if not found
+        if (!customer) {
+          customer = await tx.partner.create({
+            data: {
+              name: customerName,
+              type: 'customer'
+            }
+          })
+        }
+      }
 
       // 7. Create the invoice with lines
       const invoice = await tx.customerInvoice.create({
         data: {
           invoiceNumber,
-          customerName,
+          customerId: customer.id,
           invoiceDate: new Date(),
           totalAmount,
-          status: 'Draft',
+          status: 'draft',
           projectId: parseInt(id),
+          createdBy: user.id,
           lines: {
             create: allLines
           }
         },
         include: {
-          lines: true
+          lines: true,
+          customer: true
         }
-      });
-
-      // 8. Create billing transactions (link timesheets/expenses to invoice)
-      const timesheetTransactions = timesheets.map(ts => ({
-        customerInvoiceId: invoice.id,
-        timesheetId: ts.id,
-        amount: ts.hoursSpent * (ts.billableRate || 0)
-      }));
-
-      const expenseTransactions = expenses.map(exp => ({
-        customerInvoiceId: invoice.id,
-        expenseId: exp.id,
-        amount: exp.amount
-      }));
-
-      await tx.billingTransaction.createMany({
-        data: [...timesheetTransactions, ...expenseTransactions]
       });
 
       // 9. CRITICAL: Mark timesheets and expenses as billed (prevents double-billing)

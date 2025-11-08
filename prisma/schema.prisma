@@ -341,6 +341,7 @@ model Timesheet {
   workDate    DateTime @map("work_date") @db.Date
   hours       Decimal  @db.Decimal(8, 2)
   isBillable  Boolean  @default(true) @map("is_billable")
+  isBilled    Boolean  @default(false) @map("is_billed")
   hourlyRate  Decimal  @map("hourly_rate") @db.Decimal(10, 2)
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
@@ -585,6 +586,7 @@ model Expense {
   amount        Decimal       @db.Decimal(10, 2)
   expenseDate   DateTime      @default(now()) @map("expense_date") @db.Date
   isBillable    Boolean       @default(false) @map("is_billable")
+  isBilled      Boolean       @default(false) @map("is_billed")
   status        ExpenseStatus @default(submitted)
   receiptPath   String?       @map("receipt_path") @db.VarChar(500)
   approvedBy    Int?          @map("approved_by")
