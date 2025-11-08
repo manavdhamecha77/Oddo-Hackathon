@@ -8,7 +8,15 @@ export async function GET(req) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // CRITICAL: Filter by companyId to prevent cross-company data access
     const invoices = await prisma.customerInvoice.findMany({
+      where: {
+        project: {
+          projectManager: {
+            companyId: user.companyId
+          }
+        }
+      },
       include: {
         project: true,
         lines: true,
