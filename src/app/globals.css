@@ -120,3 +120,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+.hero-3d-container {
+  perspective: 1200px;
+}
+
+.hero-3d-image {
+  transform: rotateY(-8deg) rotateX(2deg) translateZ(50px);
+  transition: transform 0.3s ease-out;
+}
+
+.hero-3d-image:hover {
+  transform: rotateY(-5deg) rotateX(3deg) translateZ(80px);
+}

@@ -3,19 +3,21 @@ import { useEffect, useState, useRef } from "react";
 import { Users, Mail, CheckCircle, Clock, ArrowLeft, Shield, Copy, Send, Loader2, UserPlus, Upload, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import Link from "next/link";
 
 export default function AdminPage() {
   const [user, setUser] = useState(null);
-  const [invitations, setInvitations] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [inviteForm, setInviteForm] = useState({ email: "", roleId: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
-  const [csvLoading, setCsvLoading] = useState(false);
-  const [csvResults, setCsvResults] = useState(null);
-  const fileInputRef = useRef(null);
+  const [userStats, setUserStats] = useState({
+    totalMembers: 0,
+    projectManagers: 0,
+    teamMembers: 0,
+    salesFinance: 0
+  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,16 +47,29 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (user) {
-      fetchInvitations();
+      fetchTeamMembers();
       fetchRoles();
+      fetchUserStats();
     }
   }, [user]);
 
-  const fetchInvitations = async () => {
-    const res = await fetch("/api/admin/invite");
+  const fetchUserStats = async () => {
+    try {
+      const res = await fetch("/api/admin/users/stats");
+      if (res.ok) {
+        const data = await res.json();
+        setUserStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user stats:", error);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    const res = await fetch("/api/admin/users");
     if (res.ok) {
       const data = await res.json();
-      setInvitations(data.invitations);
+      setTeamMembers(data.users);
     }
   };
 
@@ -89,7 +104,7 @@ export default function AdminPage() {
         setMessage(msg);
         setCreatedUser(data.user);
         setInviteForm({ email: "", roleId: "" });
-        fetchInvitations();
+        fetchTeamMembers();
       } else {
         toast.error(data.error || "Failed to create user");
         setMessage(data.error || "Failed to create user");
@@ -149,33 +164,33 @@ export default function AdminPage() {
   };
 
   const stats = [
-    {
-      label: "Total Invitations",
-      value: invitations.length.toString(),
-      change: "All time",
-      icon: Mail,
-      color: "text-blue-500"
+    { 
+      label: "Total Team Members", 
+      value: userStats.totalMembers.toString(), 
+      change: "Active users", 
+      icon: Users, 
+      color: "text-blue-500" 
     },
-    {
-      label: "Pending",
-      value: invitations.filter(inv => inv.status === "pending").length.toString(),
-      change: "Awaiting acceptance",
-      icon: Clock,
-      color: "text-orange-500"
+    { 
+      label: "Project Managers", 
+      value: userStats.projectManagers.toString(), 
+      change: "Managing projects", 
+      icon: Shield, 
+      color: "text-purple-500" 
     },
-    {
-      label: "Accepted",
-      value: invitations.filter(inv => inv.status === "accepted").length.toString(),
-      change: "Active users",
-      icon: CheckCircle,
-      color: "text-green-500"
+    { 
+      label: "Team Members", 
+      value: userStats.teamMembers.toString(), 
+      change: "In projects", 
+      icon: Users, 
+      color: "text-green-500" 
     },
-    {
-      label: "Team Members",
-      value: invitations.filter(inv => inv.status === "accepted").length.toString(),
-      change: "In your company",
-      icon: Users,
-      color: "text-purple-500"
+    { 
+      label: "Sales & Finance", 
+      value: userStats.salesFinance.toString(), 
+      change: "Managing finance", 
+      icon: CheckCircle, 
+      color: "text-orange-500" 
     },
   ];
 
@@ -512,6 +527,15 @@ export default function AdminPage() {
                         <span className="text-sm font-medium">{new Date(inv.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
+                    <Button
+                      onClick={() => handleRevokeUser(member.id)}
+                      variant="destructive"
+                      size="sm"
+                      className="gap-2 shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Remove</span>
+                    </Button>
                   </div>
                 </div>
               ))}

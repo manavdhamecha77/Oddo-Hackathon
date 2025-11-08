@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus } from 'lucide-react'
+import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -63,12 +63,20 @@ export default function TeamMemberDashboard() {
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">My Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {user?.name}! Track your tasks and time.</p>
         </div>
-        <Button asChild className="w-full sm:w-auto">
-          <Link href="/team_member/dashboard/timesheets/create">
-            <Plus className="w-4 h-4 mr-2" />
-            Log Time
-          </Link>
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" asChild className="flex-1 sm:flex-none">
+            <Link href="/team_member/dashboard/timesheets/import">
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Link>
+          </Button>
+          <Button asChild className="flex-1 sm:flex-none">
+            <Link href="/team_member/dashboard/timesheets/create">
+              <Plus className="w-4 h-4 mr-2" />
+              Log Time
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">

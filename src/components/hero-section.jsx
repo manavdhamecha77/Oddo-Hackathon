@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { InfiniteSlider } from '@/components/ui/infinite-slider'
 import { ProgressiveBlur } from '@/components/ui/progressive-blur'
+import { Hero3DGraphic } from './hero-3d-graphic'
 
 export default function HeroSection() {
     return (
@@ -11,14 +12,14 @@ export default function HeroSection() {
             <main className="overflow-x-hidden">
                 <section>
                     <div className="pb-24 pt-32 md:pb-32 lg:pb-56 lg:pt-44">
-                        <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
-                            <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
+                        <div className="hero-3d-container relative mx-auto flex max-w-6xl flex-col px-6">
+                            <div className="mx-auto max-w-2xl text-center">
                                 <h1
-                                    className="mt-8 max-w-2xl text-balance text-5xl font-medium md:text-6xl lg:mt-16 xl:text-7xl">Know Your Project Profit in Real-Time</h1>
-                                <p className="mt-8 max-w-2xl text-pretty text-lg">OneFlow merges project execution with financial tracking. Manage tasks on Kanban boards, track expenses, and monitor profitability—all in one unified platform.</p>
+                                    className="mt-8 max-w-2xl text-balance text-5xl font-medium md:text-6xl lg:mt-16 xl:text-7xl">Plan to Bill in One Place</h1>
+                                <p className="mt-8 max-w-2xl text-pretty text-lg">OneFlow is a modular Project Management system that takes your projects from planning to execution to billing seamlessly. Manage projects, tasks, timesheets, and finances—all integrated in one unified platform.</p>
 
                                 <div
-                                    className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
+                                    className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row">
                                     <Button asChild size="lg" className="px-5 text-base">
                                         <Link href="/register">
                                             <span className="text-nowrap">Get Started Free</span>
@@ -31,12 +32,6 @@ export default function HeroSection() {
                                     </Button>
                                 </div>
                             </div>
-                            <Image
-                                className="-z-10 order-first ml-auto h-56 w-full object-cover invert sm:h-96 lg:absolute lg:inset-0 lg:-right-20 lg:-top-96 lg:order-last lg:h-max lg:w-2/3 lg:object-contain dark:mix-blend-lighten dark:invert-0"
-                                src="https://ik.imagekit.io/lrigu76hy/OneFlow/abstract-bg.jpg?updatedAt=1745733473768"
-                                alt="Abstract Object"
-                                height="4000"
-                                width="3000" />
                         </div>
                     </div>
                 </section>
