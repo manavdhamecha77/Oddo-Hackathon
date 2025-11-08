@@ -1,3 +1,4 @@
+import { HeroHeader } from "@/components/header";
 import HeroSection from "@/components/hero-section";
 import StatsSection from "@/components/home/StatsSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
@@ -11,6 +12,7 @@ import Footer from "@/components/home/Footer";
 export default function Home() {
   return (
     <>
+      <HeroHeader />
       <HeroSection />
       <StatsSection />
       <FeaturesSection />
