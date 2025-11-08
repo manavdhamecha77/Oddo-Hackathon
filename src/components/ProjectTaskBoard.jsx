@@ -76,6 +76,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       const response = await fetch(`/api/projects/${projectId}/financials`)
       if (response.ok) {
         const financials = await response.json()
+        console.log('Project Financials Response:', financials)
         setProject(prev => ({
           ...prev,
           revenue: financials.revenue?.total || 0,
@@ -83,6 +84,8 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           profit: financials.profitability?.profit || 0,
           progress: financials.progress || 0,
         }))
+      } else {
+        console.error('Failed to fetch financials, status:', response.status)
       }
     } catch (error) {
       console.error('Error fetching project financials:', error)

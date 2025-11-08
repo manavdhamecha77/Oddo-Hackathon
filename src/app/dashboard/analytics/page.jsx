@@ -167,11 +167,13 @@ export default function AnalyticsPage() {
       setLoading(true)
       
       // Fetch all necessary data including tasks
-      const [projectsRes, invoicesRes, expensesRes, timesheetsRes] = await Promise.all([
+      const [projectsRes, invoicesRes, expensesRes, timesheetsRes, salesOrdersRes, purchaseOrdersRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/customer-invoices'),
         fetch('/api/expenses'),
-        fetch('/api/timesheets')
+        fetch('/api/timesheets'),
+        fetch('/api/sales-orders'),
+        fetch('/api/purchase-orders')
       ])
 
       if (!projectsRes.ok || !invoicesRes.ok || !expensesRes.ok || !timesheetsRes.ok) {
@@ -182,6 +184,8 @@ export default function AnalyticsPage() {
       const invoices = await invoicesRes.json()
       const expenses = await expensesRes.json()
       const timesheets = await timesheetsRes.json()
+      const salesOrders = salesOrdersRes.ok ? await salesOrdersRes.json() : []
+      const purchaseOrders = purchaseOrdersRes.ok ? await purchaseOrdersRes.json() : []
       
       // Fetch tasks from all projects and store with project reference
       let allTasks = []
@@ -204,8 +208,18 @@ export default function AnalyticsPage() {
       const users = usersRes.ok ? await usersRes.json() : []
 
       // Calculate summary statistics
-      const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
-      const totalCosts = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      // Revenue from Sales Orders (confirmed and done)
+      const totalRevenue = salesOrders
+        .filter(so => so.status === 'confirmed' || so.status === 'done')
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
+      
+      // Costs from Expenses and Purchase Orders (sent and received)
+      const expenseCosts = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      const purchaseOrderCosts = purchaseOrders
+        .filter(po => po.status === 'sent' || po.status === 'received')
+        .reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+      const totalCosts = expenseCosts + purchaseOrderCosts
+      
       const totalProfit = totalRevenue - totalCosts
       const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0
       const activeProjects = projects.filter(p => p.status === 'in_progress').length
@@ -219,6 +233,57 @@ export default function AnalyticsPage() {
 
       // Get latest data for realtime section
       await fetchRealtimeData()
+
+      // Calculate month-over-month changes
+      const now = new Date()
+      const currentMonth = now.getMonth()
+      const currentYear = now.getFullYear()
+      
+      // Current month revenue and profit
+      const currentMonthRevenue = invoices
+        .filter(inv => {
+          const invDate = new Date(inv.invoiceDate)
+          return invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear
+        })
+        .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
+      
+      const currentMonthCosts = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.expenseDate)
+          return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      
+      const currentMonthProfit = currentMonthRevenue - currentMonthCosts
+      
+      // Previous month revenue and profit
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1
+      const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
+      
+      const prevMonthRevenue = invoices
+        .filter(inv => {
+          const invDate = new Date(inv.invoiceDate)
+          return invDate.getMonth() === prevMonth && invDate.getFullYear() === prevMonthYear
+        })
+        .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
+      
+      const prevMonthCosts = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.expenseDate)
+          return expDate.getMonth() === prevMonth && expDate.getFullYear() === prevMonthYear
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      
+      const prevMonthProfit = prevMonthRevenue - prevMonthCosts
+      
+      // Calculate percentage changes
+      const revenueChange = prevMonthRevenue > 0 
+        ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 
+        : 0
+      
+      const profitChange = prevMonthProfit !== 0 
+        ? ((currentMonthProfit - prevMonthProfit) / Math.abs(prevMonthProfit)) * 100 
+        : 0
 
       // Revenue by month (last 6 months)
       const revenueByMonth = generateMonthlyRevenue(invoices)
@@ -364,8 +429,8 @@ export default function AnalyticsPage() {
           billableHours,
           nonBillableHours,
           totalInvoices,
-          revenueChange: 12.5, // Mock data for now
-          profitChange: 8.3 // Mock data for now
+          revenueChange: parseFloat(revenueChange.toFixed(1)),
+          profitChange: parseFloat(profitChange.toFixed(1))
         },
         revenueByMonth,
         projectStatus,
@@ -626,25 +691,31 @@ export default function AnalyticsPage() {
             <BarChart3 className="w-5 h-5" />
             Revenue vs Costs
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.revenueVsCosts}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <RechartsTooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-                formatter={(value) => formatCurrency(value)}
-              />
-              <Legend />
-              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="profit" fill="#3b82f6" name="Profit" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {analytics.revenueVsCosts && analytics.revenueVsCosts.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.revenueVsCosts}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <RechartsTooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value) => formatCurrency(value)}
+                />
+                <Legend />
+                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              <p>No data available for the selected period</p>
+            </div>
+          )}
         </div>
       </div>
 

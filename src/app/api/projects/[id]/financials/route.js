@@ -34,20 +34,35 @@ export async function GET(req, { params }) {
     const totalRevenue = Number(revenueData._sum.totalAmount || 0);
     const salesOrderCount = revenueData._count;
 
-    // Calculate Costs (from Expenses only)
+    // Calculate Costs (from Expenses and Purchase Orders)
     const expenseData = await prisma.expense.aggregate({
       where: { projectId },
       _sum: { amount: true },
       _count: true
     });
 
-    const totalCosts = Number(expenseData._sum.amount || 0);
+    const purchaseOrderData = await prisma.purchaseOrder.aggregate({
+      where: { 
+        projectId,
+        status: { in: ['sent', 'received'] } // Only count sent and received purchase orders
+      },
+      _sum: { totalAmount: true },
+      _count: true
+    });
+
+    const expenseCosts = Number(expenseData._sum.amount || 0);
+    const poCosts = Number(purchaseOrderData._sum.totalAmount || 0);
+    const totalCosts = expenseCosts + poCosts;
     const expenseCount = expenseData._count;
+    const poCount = purchaseOrderData._count;
 
     console.log(`[Financials API] Project ${projectId}:`, {
       totalRevenue,
+      expenseCosts,
+      poCosts,
       totalCosts,
-      expenseCount
+      expenseCount,
+      poCount
     });
 
     // Profit Calculation
@@ -110,8 +125,12 @@ export async function GET(req, { params }) {
       },
       costs: {
         expenses: {
-          amount: totalCosts,
+          amount: expenseCosts,
           count: expenseCount
+        },
+        purchaseOrders: {
+          amount: poCosts,
+          count: poCount
         },
         total: totalCosts
       },

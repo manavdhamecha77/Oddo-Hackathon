@@ -167,11 +167,13 @@ export default function AnalyticsPage() {
       setLoading(true)
       
       // Fetch all necessary data including tasks
-      const [projectsRes, invoicesRes, expensesRes, timesheetsRes] = await Promise.all([
+      const [projectsRes, invoicesRes, expensesRes, timesheetsRes, salesOrdersRes, purchaseOrdersRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/customer-invoices'),
         fetch('/api/expenses'),
-        fetch('/api/timesheets')
+        fetch('/api/timesheets'),
+        fetch('/api/sales-orders'),
+        fetch('/api/purchase-orders')
       ])
 
       if (!projectsRes.ok || !invoicesRes.ok || !expensesRes.ok || !timesheetsRes.ok) {
@@ -182,6 +184,8 @@ export default function AnalyticsPage() {
       const invoices = await invoicesRes.json()
       const expenses = await expensesRes.json()
       const timesheets = await timesheetsRes.json()
+      const salesOrders = salesOrdersRes.ok ? await salesOrdersRes.json() : []
+      const purchaseOrders = purchaseOrdersRes.ok ? await purchaseOrdersRes.json() : []
       
       // Fetch tasks from all projects and store with project reference
       let allTasks = []
@@ -204,8 +208,18 @@ export default function AnalyticsPage() {
       const users = usersRes.ok ? await usersRes.json() : []
 
       // Calculate summary statistics
-      const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
-      const totalCosts = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      // Revenue from Sales Orders (confirmed and done)
+      const totalRevenue = salesOrders
+        .filter(so => so.status === 'confirmed' || so.status === 'done')
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
+      
+      // Costs from Expenses and Purchase Orders (sent and received)
+      const expenseCosts = expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      const purchaseOrderCosts = purchaseOrders
+        .filter(po => po.status === 'sent' || po.status === 'received')
+        .reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+      const totalCosts = expenseCosts + purchaseOrderCosts
+      
       const totalProfit = totalRevenue - totalCosts
       const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0
       const activeProjects = projects.filter(p => p.status === 'in_progress').length
@@ -220,8 +234,84 @@ export default function AnalyticsPage() {
       // Get latest data for realtime section
       await fetchRealtimeData()
 
+      // Calculate month-over-month changes
+      const now = new Date()
+      const currentMonth = now.getMonth()
+      const currentYear = now.getFullYear()
+      
+      // Current month revenue from Sales Orders
+      const currentMonthRevenue = salesOrders
+        .filter(so => {
+          const soDate = new Date(so.orderDate)
+          return (so.status === 'confirmed' || so.status === 'done') &&
+                 soDate.getMonth() === currentMonth && 
+                 soDate.getFullYear() === currentYear
+        })
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
+      
+      // Current month costs from Expenses and Purchase Orders
+      const currentMonthExpenses = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.expenseDate)
+          return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      
+      const currentMonthPOs = purchaseOrders
+        .filter(po => {
+          const poDate = new Date(po.orderDate)
+          return (po.status === 'sent' || po.status === 'received') &&
+                 poDate.getMonth() === currentMonth && 
+                 poDate.getFullYear() === currentYear
+        })
+        .reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+      
+      const currentMonthCosts = currentMonthExpenses + currentMonthPOs
+      const currentMonthProfit = currentMonthRevenue - currentMonthCosts
+      
+      // Previous month revenue and profit
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1
+      const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
+      
+      const prevMonthRevenue = salesOrders
+        .filter(so => {
+          const soDate = new Date(so.orderDate)
+          return (so.status === 'confirmed' || so.status === 'done') &&
+                 soDate.getMonth() === prevMonth && 
+                 soDate.getFullYear() === prevMonthYear
+        })
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
+      
+      const prevMonthExpenses = expenses
+        .filter(exp => {
+          const expDate = new Date(exp.expenseDate)
+          return expDate.getMonth() === prevMonth && expDate.getFullYear() === prevMonthYear
+        })
+        .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
+      
+      const prevMonthPOs = purchaseOrders
+        .filter(po => {
+          const poDate = new Date(po.orderDate)
+          return (po.status === 'sent' || po.status === 'received') &&
+                 poDate.getMonth() === prevMonth && 
+                 poDate.getFullYear() === prevMonthYear
+        })
+        .reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+      
+      const prevMonthCosts = prevMonthExpenses + prevMonthPOs
+      const prevMonthProfit = prevMonthRevenue - prevMonthCosts
+      
+      // Calculate percentage changes
+      const revenueChange = prevMonthRevenue > 0 
+        ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 
+        : 0
+      
+      const profitChange = prevMonthProfit !== 0 
+        ? ((currentMonthProfit - prevMonthProfit) / Math.abs(prevMonthProfit)) * 100 
+        : 0
+
       // Revenue by month (last 6 months)
-      const revenueByMonth = generateMonthlyRevenue(invoices)
+      const revenueByMonth = generateMonthlyRevenue(salesOrders)
 
       // Project status distribution
       const projectStatus = [
@@ -242,11 +332,11 @@ export default function AnalyticsPage() {
         value
       }))
 
-      // Top 5 projects by revenue
+      // Top 5 projects by revenue (from Sales Orders)
       const projectRevenueMap = {}
-      invoices.forEach(inv => {
-        if (inv.project?.name) {
-          projectRevenueMap[inv.project.name] = (projectRevenueMap[inv.project.name] || 0) + Number(inv.totalAmount || 0)
+      salesOrders.forEach(so => {
+        if ((so.status === 'confirmed' || so.status === 'done') && so.project?.name) {
+          projectRevenueMap[so.project.name] = (projectRevenueMap[so.project.name] || 0) + Number(so.totalAmount || 0)
         }
       })
       const topProjects = Object.entries(projectRevenueMap)
@@ -255,7 +345,7 @@ export default function AnalyticsPage() {
         .slice(0, 5)
 
       // Revenue vs Costs comparison
-      const revenueVsCosts = generateRevenueVsCosts(invoices, expenses)
+      const revenueVsCosts = generateRevenueVsCosts(salesOrders, expenses, purchaseOrders)
 
       // Hours by project
       const projectHoursMap = {}
@@ -307,14 +397,14 @@ export default function AnalyticsPage() {
       // Project Cost vs Revenue (per project breakdown)
       const projectFinancials = {}
       
-      // Aggregate revenue per project from invoices
-      invoices.forEach(inv => {
-        if (inv.project) {
-          const projectName = inv.project.name
+      // Aggregate revenue per project from Sales Orders
+      salesOrders.forEach(so => {
+        if ((so.status === 'confirmed' || so.status === 'done') && so.project) {
+          const projectName = so.project.name
           if (!projectFinancials[projectName]) {
             projectFinancials[projectName] = { revenue: 0, costs: 0 }
           }
-          projectFinancials[projectName].revenue += Number(inv.totalAmount || 0)
+          projectFinancials[projectName].revenue += Number(so.totalAmount || 0)
         }
       })
       
@@ -326,6 +416,17 @@ export default function AnalyticsPage() {
             projectFinancials[projectName] = { revenue: 0, costs: 0 }
           }
           projectFinancials[projectName].costs += Number(exp.amount || 0)
+        }
+      })
+      
+      // Add Purchase Order costs per project
+      purchaseOrders.forEach(po => {
+        if ((po.status === 'sent' || po.status === 'received') && po.project) {
+          const projectName = po.project.name
+          if (!projectFinancials[projectName]) {
+            projectFinancials[projectName] = { revenue: 0, costs: 0 }
+          }
+          projectFinancials[projectName].costs += Number(po.totalAmount || 0)
         }
       })
       
@@ -350,6 +451,22 @@ export default function AnalyticsPage() {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 8)
 
+      console.log('Analytics Data:', {
+        totalRevenue,
+        totalCosts,
+        totalProfit,
+        profitMargin,
+        salesOrdersCount: salesOrders.length,
+        purchaseOrdersCount: purchaseOrders.length,
+        expensesCount: expenses.length,
+        revenueVsCostsLength: revenueVsCosts.length,
+        revenueVsCosts: revenueVsCosts,
+        revenueByMonthLength: revenueByMonth.length,
+        revenueByMonth: revenueByMonth,
+        topProjectsCount: topProjects.length,
+        topProjects: topProjects
+      })
+
       setAnalytics({
         summary: {
           totalRevenue,
@@ -364,8 +481,8 @@ export default function AnalyticsPage() {
           billableHours,
           nonBillableHours,
           totalInvoices,
-          revenueChange: 12.5, // Mock data for now
-          profitChange: 8.3 // Mock data for now
+          revenueChange: parseFloat(revenueChange.toFixed(1)),
+          profitChange: parseFloat(profitChange.toFixed(1))
         },
         revenueByMonth,
         projectStatus,
@@ -385,47 +502,84 @@ export default function AnalyticsPage() {
     }
   }
 
-  const generateMonthlyRevenue = (invoices) => {
+  const generateMonthlyRevenue = (salesOrders) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const currentMonth = new Date().getMonth()
+    const now = new Date()
     const monthlyData = []
 
     for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentMonth - i + 12) % 12
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthIndex = targetDate.getMonth()
+      const yearIndex = targetDate.getFullYear()
       const monthName = months[monthIndex]
-      const revenue = invoices
-        .filter(inv => {
-          const invMonth = new Date(inv.invoiceDate).getMonth()
-          return invMonth === monthIndex
-        })
-        .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
       
-      monthlyData.push({ month: monthName, revenue })
+      const revenue = salesOrders
+        .filter(so => {
+          if (!so.orderDate) return false
+          const soDate = new Date(so.orderDate)
+          return (so.status === 'confirmed' || so.status === 'done') && 
+                 soDate.getMonth() === monthIndex && 
+                 soDate.getFullYear() === yearIndex
+        })
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
+      
+      monthlyData.push({ month: monthName, revenue: Math.round(revenue) })
     }
 
+    console.log('Revenue By Month Data:', monthlyData)
     return monthlyData
   }
 
-  const generateRevenueVsCosts = (invoices, expenses) => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-    const currentMonth = new Date().getMonth()
+  const generateRevenueVsCosts = (salesOrders, expenses, purchaseOrders) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const now = new Date()
     const data = []
 
     for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentMonth - i + 12) % 12
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthIndex = targetDate.getMonth()
+      const yearIndex = targetDate.getFullYear()
       const monthName = months[monthIndex]
       
-      const revenue = invoices
-        .filter(inv => new Date(inv.invoiceDate).getMonth() === monthIndex)
-        .reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
+      const revenue = salesOrders
+        .filter(so => {
+          if (!so.orderDate) return false
+          const soDate = new Date(so.orderDate)
+          return (so.status === 'confirmed' || so.status === 'done') && 
+                 soDate.getMonth() === monthIndex && 
+                 soDate.getFullYear() === yearIndex
+        })
+        .reduce((sum, so) => sum + Number(so.totalAmount || 0), 0)
       
-      const costs = expenses
-        .filter(exp => new Date(exp.expenseDate).getMonth() === monthIndex)
+      const expenseCosts = expenses
+        .filter(exp => {
+          if (!exp.expenseDate) return false
+          const expDate = new Date(exp.expenseDate)
+          return expDate.getMonth() === monthIndex && expDate.getFullYear() === yearIndex
+        })
         .reduce((sum, exp) => sum + Number(exp.amount || 0), 0)
       
-      data.push({ month: monthName, revenue, costs, profit: revenue - costs })
+      const poCosts = purchaseOrders
+        .filter(po => {
+          if (!po.orderDate) return false
+          const poDate = new Date(po.orderDate)
+          return (po.status === 'sent' || po.status === 'received') && 
+                 poDate.getMonth() === monthIndex && 
+                 poDate.getFullYear() === yearIndex
+        })
+        .reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+      
+      const costs = expenseCosts + poCosts
+      
+      data.push({ 
+        month: monthName, 
+        revenue: Math.round(revenue), 
+        costs: Math.round(costs), 
+        profit: Math.round(revenue - costs) 
+      })
     }
 
+    console.log('Revenue vs Costs Data:', data)
     return data
   }
 
@@ -581,13 +735,19 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
+      {/* Section: Financial Trends */}
+      <div className="space-y-2">
+        <h2 className="text-xl font-bold text-foreground">Financial Trends</h2>
+        <p className="text-sm text-muted-foreground">Monitor revenue, costs, and profitability over time</p>
+      </div>
+
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue Trend */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Revenue Trend
+            <TrendingUp className="w-5 h-5 text-blue-500" />
+            Revenue Trend (Last 6 Months)
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={analytics.revenueByMonth}>
@@ -621,40 +781,56 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Revenue vs Costs */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Revenue vs Costs
+            <BarChart3 className="w-5 h-5 text-purple-500" />
+            Revenue vs Costs (Last 6 Months)
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.revenueVsCosts}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <RechartsTooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-                formatter={(value) => formatCurrency(value)}
-              />
-              <Legend />
-              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="profit" fill="#3b82f6" name="Profit" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {analytics.revenueVsCosts && analytics.revenueVsCosts.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.revenueVsCosts}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <RechartsTooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value) => formatCurrency(value)}
+                />
+                <Legend />
+                <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground space-y-3">
+              <BarChart3 className="w-16 h-16 opacity-20" />
+              <div className="text-center">
+                <p className="font-medium">No Financial Data Available</p>
+                <p className="text-xs mt-1">Add Sales Orders and Expenses to see the chart</p>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Section: Project & Expense Breakdown */}
+      <div className="space-y-2 mt-8">
+        <h2 className="text-xl font-bold text-foreground">Operational Insights</h2>
+        <p className="text-sm text-muted-foreground">Project status, expenses, and time tracking</p>
       </div>
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Project Status Distribution */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <FolderKanban className="w-5 h-5" />
-            Project Status
+            <FolderKanban className="w-5 h-5 text-indigo-500" />
+            Project Status Distribution
           </h3>
           {analytics.projectStatus.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
@@ -684,9 +860,9 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Expense Categories */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Receipt className="w-5 h-5" />
+            <Receipt className="w-5 h-5 text-red-500" />
             Expense Categories
           </h3>
           {analytics.expenseCategories.length > 0 ? (
@@ -717,10 +893,10 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Hours by Project */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Hours Logged
+            <Clock className="w-5 h-5 text-green-500" />
+            Hours Logged by Project
           </h3>
           {analytics.hoursByProject.length > 0 ? (
             <div className="space-y-4">
@@ -756,11 +932,17 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Section: Top Performers */}
+      <div className="space-y-2 mt-8">
+        <h2 className="text-xl font-bold text-foreground">Top Performers</h2>
+        <p className="text-sm text-muted-foreground">Highest revenue generating projects</p>
+      </div>
+
       {/* Top Projects */}
-      <div className="bg-card border rounded-xl p-6">
+      <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" />
-          Top Projects by Revenue
+          <TrendingUp className="w-5 h-5 text-emerald-500" />
+          Top 5 Projects by Revenue
         </h3>
         {analytics.topProjects.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
@@ -786,13 +968,19 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Section: Team Performance */}
+      <div className="space-y-2 mt-8">
+        <h2 className="text-xl font-bold text-foreground">Team Performance</h2>
+        <p className="text-sm text-muted-foreground">Track project progress and resource allocation</p>
+      </div>
+
       {/* New Charts Row 3 - Project Progress % */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Project Progress % */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            Project Progress %
+            <Activity className="w-5 h-5 text-orange-500" />
+            Project Completion Status
           </h3>
           {analytics.projectProgress.length > 0 ? (
             <ScrollArea className="h-[350px]">
@@ -835,10 +1023,10 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Resource Utilization */}
-        <div className="bg-card border rounded-xl p-6">
+        <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Resource Utilization
+            <Users className="w-5 h-5 text-cyan-500" />
+            Team Resource Utilization
           </h3>
           {analytics.resourceUtilization.length > 0 ? (
             <ScrollArea className="h-[350px]">
@@ -880,11 +1068,17 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Section: Project Financials */}
+      <div className="space-y-2 mt-8">
+        <h2 className="text-xl font-bold text-foreground">Project Financials</h2>
+        <p className="text-sm text-muted-foreground">Detailed revenue and cost analysis per project</p>
+      </div>
+
       {/* Project Cost vs Revenue Chart */}
-      <div className="bg-card border rounded-xl p-6">
+      <div className="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5" />
-          Project Cost vs Revenue
+          <BarChart3 className="w-5 h-5 text-violet-500" />
+          Project Financial Breakdown (Revenue vs Costs)
         </h3>
         {analytics.projectCostVsRevenue.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
@@ -901,9 +1095,9 @@ export default function AnalyticsPage() {
                 formatter={(value) => formatCurrency(value)}
               />
               <Legend />
-              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" radius={[0, 4, 4, 0]} />
               <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="profit" fill="#3b82f6" name="Profit" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
