@@ -68,14 +68,18 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const user = await getUserFromRequest(req);
+    console.log('User from request:', { id: user?.id, role: user?.role, companyId: user?.companyId });
+    
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Check role
-    if (!['PROJECT_MANAGER', 'SALES_FINANCE', 'ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!['project_manager', 'sales_finance', 'admin'].includes(user.role)) {
+      console.log('Role check failed. User role:', user.role);
+      return NextResponse.json({ error: "Forbidden - Invalid role" }, { status: 403 });
     }
 
-    const { projectId, orderNumber, vendorId, orderDate, totalAmount, status, lines } = await req.json();
+    const { projectId, orderNumber, vendorId, orderDate, totalAmount, status, lines, notes } = await req.json();
+    console.log('Received data:', { projectId, orderNumber, vendorId, userCompanyId: user.companyId });
 
     if (!projectId || !orderNumber || !vendorId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -89,8 +93,22 @@ export async function POST(req) {
       }
     });
 
+    console.log('Project lookup:', { 
+      projectExists: !!project, 
+      projectCompanyId: project?.projectManager?.companyId, 
+      userCompanyId: user.companyId,
+      match: project?.projectManager?.companyId === user.companyId
+    });
+
     if (!project || project.projectManager.companyId !== user.companyId) {
-      return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
+      return NextResponse.json({ 
+        error: "Forbidden: Invalid company access",
+        details: {
+          projectExists: !!project,
+          projectCompanyId: project?.projectManager?.companyId,
+          userCompanyId: user.companyId
+        }
+      }, { status: 403 });
     }
 
     const purchaseOrder = await prisma.purchaseOrder.create({
@@ -100,7 +118,7 @@ export async function POST(req) {
         orderDate: orderDate ? new Date(orderDate) : new Date(),
         totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
         status: status || 'draft',
-        notes: await req.json().then(body => body.notes || null),
+        notes: notes || null,
         projectId: parseInt(projectId),
         createdBy: user.id,
         lines: lines ? {

@@ -34,6 +34,7 @@ export default function PurchaseOrderForm({
   const [vendors, setVendors] = useState([])
   const [loadingVendors, setLoadingVendors] = useState(true)
   const [showNewVendorForm, setShowNewVendorForm] = useState(false)
+  const formRef = React.useRef(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -178,6 +179,12 @@ export default function PurchaseOrderForm({
     e.preventDefault()
 
     // Validation
+    if (!projectId) {
+      toast.error('No project selected')
+      console.error('Missing projectId:', projectId)
+      return
+    }
+
     if (!formData.orderNumber || !formData.vendorId) {
       toast.error('Please fill in all required fields')
       return
@@ -207,6 +214,8 @@ export default function PurchaseOrderForm({
         }))
       }
 
+      console.log('Submitting payload:', payload)
+
       const url = existingPO 
         ? `/api/purchase-orders/${existingPO.id}`
         : '/api/purchase-orders'
@@ -225,6 +234,7 @@ export default function PurchaseOrderForm({
         handleClose()
       } else {
         const error = await res.json()
+        console.error('API Error Response:', error)
         toast.error(error.error || 'Failed to save Purchase Order')
       }
     } catch (error) {
@@ -265,7 +275,7 @@ export default function PurchaseOrderForm({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
           {/* Header Information */}
           <Card>
             <CardHeader>
@@ -533,13 +543,11 @@ export default function PurchaseOrderForm({
             Cancel
           </Button>
           <Button 
-            type="submit" 
+            type="button" 
             disabled={loading}
-            onClick={(e) => {
-              e.preventDefault()
-              const form = e.target.closest('dialog').querySelector('form')
-              if (form) {
-                form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+            onClick={() => {
+              if (formRef.current) {
+                formRef.current.requestSubmit()
               }
             }}
           >

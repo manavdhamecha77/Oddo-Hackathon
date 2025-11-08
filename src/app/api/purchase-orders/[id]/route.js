@@ -66,7 +66,7 @@ export async function PUT(req, { params }) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Check role
-    if (!['PROJECT_MANAGER', 'SALES_FINANCE', 'ADMIN'].includes(user.role)) {
+    if (!['project_manager', 'sales_finance', 'admin'].includes(user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -154,7 +154,7 @@ export async function DELETE(req, { params }) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Only ADMIN can delete
-    if (user.role !== 'ADMIN') {
+    if (user.role !== 'admin') {
       return NextResponse.json({ error: "Forbidden - Admin only" }, { status: 403 });
     }
 
