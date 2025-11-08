@@ -31,6 +31,7 @@ const roleNavItems = {
         { name: 'Projects', href: '/admin/dashboard/projects', icon: FolderKanban },
         { name: 'Timesheets', href: '/admin/dashboard/timesheets', icon: Clock },
         { name: 'Expenses', href: '/admin/dashboard/expenses', icon: Receipt },
+        { name: 'Hourly Rates', href: '/admin/dashboard/hourly-rates', icon: DollarSign },
         { name: 'Team Management', href: '/admin', icon: Users },
     ],
     project_manager: [
