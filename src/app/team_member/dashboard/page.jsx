@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus, Upload } from 'lucide-react'
+import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -65,9 +65,9 @@ export default function TeamMemberDashboard() {
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" asChild className="flex-1 sm:flex-none">
-            <Link href="/team_member/dashboard/timesheets/import">
-              <Upload className="w-4 h-4 mr-2" />
-              Import
+            <Link href="/team_member/dashboard/timesheets">
+              <Download className="w-4 h-4 mr-2" />
+              Export
             </Link>
           </Button>
           <Button asChild className="flex-1 sm:flex-none">

@@ -12,13 +12,44 @@ export async function GET(req, { params }) {
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
       where: { id: parseInt(id) },
       include: {
-        project: true,
-        lines: true
+        project: {
+          select: {
+            id: true,
+            name: true,
+            projectManager: {
+              select: {
+                companyId: true
+              }
+            }
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        lines: true,
+        vendorBills: {
+          select: {
+            id: true,
+            billNumber: true,
+            totalAmount: true,
+            status: true
+          }
+        }
       }
     });
 
     if (!purchaseOrder) {
       return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+    }
+
+    // CRITICAL: Verify user has access to this PO's project
+    if (purchaseOrder.project.projectManager.companyId !== user.companyId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(purchaseOrder);
@@ -40,22 +71,73 @@ export async function PUT(req, { params }) {
     }
 
     const { id } = await params;
-    const { orderNumber, vendorName, orderDate, totalAmount, status, lines } = await req.json();
+    const { orderNumber, vendorId, orderDate, totalAmount, status, notes, lines } = await req.json();
 
-    // Update purchase order
-    const updatedPurchaseOrder = await prisma.purchaseOrder.update({
+    // Verify PO exists and user has access
+    const existingPO = await prisma.purchaseOrder.findUnique({
       where: { id: parseInt(id) },
-      data: {
-        ...(orderNumber && { orderNumber }),
-        ...(vendorName && { vendorName }),
-        ...(orderDate && { orderDate: new Date(orderDate) }),
-        ...(totalAmount !== undefined && { totalAmount: parseFloat(totalAmount) }),
-        ...(status && { status })
-      },
       include: {
-        project: true,
-        lines: true
+        project: {
+          select: {
+            projectManager: {
+              select: { companyId: true }
+            }
+          }
+        }
       }
+    });
+
+    if (!existingPO) {
+      return NextResponse.json({ error: "Purchase order not found" }, { status: 404 });
+    }
+
+    if (existingPO.project.projectManager.companyId !== user.companyId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Update purchase order with lines in a transaction
+    const updatedPurchaseOrder = await prisma.$transaction(async (tx) => {
+      // Delete existing lines
+      await tx.purchaseOrderLine.deleteMany({
+        where: { purchaseOrderId: parseInt(id) }
+      });
+
+      // Update PO with new lines
+      return await tx.purchaseOrder.update({
+        where: { id: parseInt(id) },
+        data: {
+          ...(orderNumber && { orderNumber }),
+          ...(vendorId && { vendorId: parseInt(vendorId) }),
+          ...(orderDate && { orderDate: new Date(orderDate) }),
+          ...(totalAmount !== undefined && { totalAmount: parseFloat(totalAmount) }),
+          ...(status && { status }),
+          ...(notes !== undefined && { notes }),
+          lines: lines ? {
+            create: lines.map(line => ({
+              description: line.description,
+              quantity: parseFloat(line.quantity),
+              unitPrice: parseFloat(line.unitPrice)
+            }))
+          } : undefined
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          vendor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true
+            }
+          },
+          lines: true
+        }
+      });
     });
 
     return NextResponse.json(updatedPurchaseOrder);

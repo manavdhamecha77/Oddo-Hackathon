@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner'
 import GenerateInvoiceDialog from '@/components/billing/GenerateInvoiceDialog'
 import CreateSalesOrderModal from '@/components/CreateSalesOrderModal'
+import PurchaseOrderForm from '@/components/forms/PurchaseOrderForm'
 
 export default function ProjectLinksPanel({ projectId, userRole }) {
   const [activeTab, setActiveTab] = useState('sales-orders')
@@ -281,9 +282,17 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
         {/* Purchase Orders Tab */}
         <TabsContent value="purchase-orders">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Purchase Orders</h3>
+            <div>
+              <h3 className="text-lg font-semibold">Purchase Orders (Planned Costs)</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                POs represent future costs earmarked for this project
+              </p>
+            </div>
             {canCreatePO && (
-              <Button size="sm">
+              <Button size="sm" onClick={() => {
+                setSelectedPO(null)
+                setShowPOForm(true)
+              }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Purchase Order
               </Button>
@@ -292,7 +301,8 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           {purchaseOrders.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No purchase orders linked to this project</p>
+              <p className="font-medium">No purchase orders linked to this project</p>
+              <p className="text-sm mt-2">Create a PO to plan vendor costs before receiving bills</p>
             </div>
           ) : (
             <Table>
@@ -303,24 +313,46 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Linked Bills</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {purchaseOrders.map((po) => (
-                  <TableRow key={po.id}>
-                    <TableCell className="font-medium">{po.orderNumber}</TableCell>
-                    <TableCell>{po.vendor?.name || 'N/A'}</TableCell>
-                    <TableCell>{formatDate(po.orderDate)}</TableCell>
-                    <TableCell>{formatCurrency(po.totalAmount)}</TableCell>
-                    <TableCell>{getStatusBadge(po.status)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {purchaseOrders.map((po) => {
+                  const linkedBills = vendorBills.filter(vb => vb.purchaseOrderId === po.id)
+                  return (
+                    <TableRow key={po.id}>
+                      <TableCell className="font-medium">{po.orderNumber}</TableCell>
+                      <TableCell>{po.vendor?.name || 'N/A'}</TableCell>
+                      <TableCell>{formatDate(po.orderDate)}</TableCell>
+                      <TableCell className="font-semibold text-orange-600">
+                        {formatCurrency(po.totalAmount)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(po.status)}</TableCell>
+                      <TableCell>
+                        {linkedBills.length > 0 ? (
+                          <Badge variant="default">{linkedBills.length} bill(s)</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No bills yet</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedPO(po)
+                              setShowPOForm(true)
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

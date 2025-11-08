@@ -30,8 +30,29 @@ export async function GET(req) {
     const purchaseOrders = await prisma.purchaseOrder.findMany({
       where: whereClause,
       include: {
-        project: true,
-        lines: true
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
+        lines: true,
+        vendorBills: {
+          select: {
+            id: true,
+            billNumber: true,
+            totalAmount: true,
+            status: true
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -79,6 +100,7 @@ export async function POST(req) {
         orderDate: orderDate ? new Date(orderDate) : new Date(),
         totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
         status: status || 'draft',
+        notes: await req.json().then(body => body.notes || null),
         projectId: parseInt(projectId),
         createdBy: user.id,
         lines: lines ? {
@@ -90,8 +112,20 @@ export async function POST(req) {
         } : undefined
       },
       include: {
-        project: true,
-        vendor: true,
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        },
         lines: true
       }
     });
