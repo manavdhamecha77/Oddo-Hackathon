@@ -17,7 +17,7 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/invoices')
+      const response = await fetch('/api/customer-invoices')
       if (!response.ok) throw new Error('Failed to fetch invoices')
       const data = await response.json()
       setInvoices(data)
