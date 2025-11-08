@@ -405,10 +405,13 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
             <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
             <p className="text-sm text-muted-foreground max-w-2xl">{project.description}</p>
           </div>
-          <Button onClick={() => setShowAddTaskModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Task
-          </Button>
+          {/* Only show Add Task button for admin and project_manager roles */}
+          {userRole && userRole !== 'sales_finance' && userRole !== 'team_member' && (
+            <Button onClick={() => setShowAddTaskModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Task
+            </Button>
+          )}
         </div>
       </div>
 
