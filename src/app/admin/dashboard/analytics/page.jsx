@@ -92,7 +92,12 @@ export default function AnalyticsPage() {
       totalProfit: 0,
       profitMargin: 0,
       activeProjects: 0,
+      totalProjects: 0,
+      tasksCompleted: 0,
+      totalTasks: 0,
       totalHours: 0,
+      billableHours: 0,
+      nonBillableHours: 0,
       totalInvoices: 0,
       revenueChange: 0,
       profitChange: 0
@@ -102,7 +107,10 @@ export default function AnalyticsPage() {
     expenseCategories: [],
     topProjects: [],
     revenueVsCosts: [],
-    hoursByProject: []
+    hoursByProject: [],
+    projectProgress: [],
+    resourceUtilization: [],
+    projectCostVsRevenue: []
   })
 
   useEffect(() => {
@@ -158,7 +166,7 @@ export default function AnalyticsPage() {
     try {
       setLoading(true)
       
-      // Fetch all necessary data
+      // Fetch all necessary data including tasks
       const [projectsRes, invoicesRes, expensesRes, timesheetsRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/customer-invoices'),
@@ -174,6 +182,26 @@ export default function AnalyticsPage() {
       const invoices = await invoicesRes.json()
       const expenses = await expensesRes.json()
       const timesheets = await timesheetsRes.json()
+      
+      // Fetch tasks from all projects and store with project reference
+      let allTasks = []
+      const projectTasksMap = {}
+      for (const project of projects) {
+        try {
+          const tasksRes = await fetch(`/api/projects/${project.id}/tasks`)
+          if (tasksRes.ok) {
+            const projectTasks = await tasksRes.json()
+            allTasks = [...allTasks, ...projectTasks]
+            projectTasksMap[project.id] = projectTasks
+          }
+        } catch (error) {
+          console.error(`Error fetching tasks for project ${project.id}:`, error)
+        }
+      }
+
+      // Fetch users for resource utilization
+      const usersRes = await fetch('/api/users')
+      const users = usersRes.ok ? await usersRes.json() : []
 
       // Calculate summary statistics
       const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
@@ -181,8 +209,13 @@ export default function AnalyticsPage() {
       const totalProfit = totalRevenue - totalCosts
       const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0
       const activeProjects = projects.filter(p => p.status === 'in_progress').length
+      const totalProjects = projects.length
       const totalHours = timesheets.reduce((sum, ts) => sum + Number(ts.hours || 0), 0)
+      const billableHours = timesheets.filter(ts => ts.billable).reduce((sum, ts) => sum + Number(ts.hours || 0), 0)
+      const nonBillableHours = timesheets.filter(ts => !ts.billable).reduce((sum, ts) => sum + Number(ts.hours || 0), 0)
       const totalInvoices = invoices.length
+      const tasksCompleted = allTasks.filter(task => task.status === 'done').length
+      const totalTasks = allTasks.length
 
       // Get latest data for realtime section
       await fetchRealtimeData()
@@ -236,6 +269,87 @@ export default function AnalyticsPage() {
         .sort((a, b) => b.hours - a.hours)
         .slice(0, 5)
 
+      // Project Progress % (calculate completion based on tasks)
+      const projectProgress = projects
+        .map(project => {
+          const tasks = projectTasksMap[project.id] || []
+          const totalTasks = tasks.length
+          const completedTasks = tasks.filter(t => t.status === 'done').length
+          const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+          return {
+            name: project.name,
+            progress: Math.round(progress),
+            completed: completedTasks,
+            total: totalTasks
+          }
+        })
+        .filter(p => p.total > 0)
+        .sort((a, b) => b.progress - a.progress)
+        .slice(0, 8)
+
+      // Resource Utilization (team members' hours worked)
+      const userHoursMap = {}
+      timesheets.forEach(ts => {
+        if (ts.user) {
+          const userName = `${ts.user.firstName} ${ts.user.lastName}`
+          userHoursMap[userName] = (userHoursMap[userName] || 0) + Number(ts.hours || 0)
+        }
+      })
+      const resourceUtilization = Object.entries(userHoursMap)
+        .map(([name, hours]) => ({
+          name,
+          hours: Math.round(hours * 10) / 10,
+          utilization: Math.min(100, Math.round((hours / 160) * 100)) // Assuming 160 hours/month capacity
+        }))
+        .sort((a, b) => b.hours - a.hours)
+        .slice(0, 10)
+
+      // Project Cost vs Revenue (per project breakdown)
+      const projectFinancials = {}
+      
+      // Aggregate revenue per project from invoices
+      invoices.forEach(inv => {
+        if (inv.project) {
+          const projectName = inv.project.name
+          if (!projectFinancials[projectName]) {
+            projectFinancials[projectName] = { revenue: 0, costs: 0 }
+          }
+          projectFinancials[projectName].revenue += Number(inv.totalAmount || 0)
+        }
+      })
+      
+      // Aggregate costs per project from expenses
+      expenses.forEach(exp => {
+        if (exp.project) {
+          const projectName = exp.project.name
+          if (!projectFinancials[projectName]) {
+            projectFinancials[projectName] = { revenue: 0, costs: 0 }
+          }
+          projectFinancials[projectName].costs += Number(exp.amount || 0)
+        }
+      })
+      
+      // Add timesheet costs per project
+      timesheets.forEach(ts => {
+        if (ts.project) {
+          const projectName = ts.project.name
+          if (!projectFinancials[projectName]) {
+            projectFinancials[projectName] = { revenue: 0, costs: 0 }
+          }
+          projectFinancials[projectName].costs += Number(ts.hours || 0) * Number(ts.hourlyRate || 0)
+        }
+      })
+      
+      const projectCostVsRevenue = Object.entries(projectFinancials)
+        .map(([name, data]) => ({
+          name,
+          revenue: Math.round(data.revenue),
+          costs: Math.round(data.costs),
+          profit: Math.round(data.revenue - data.costs)
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 8)
+
       setAnalytics({
         summary: {
           totalRevenue,
@@ -243,7 +357,12 @@ export default function AnalyticsPage() {
           totalProfit,
           profitMargin,
           activeProjects,
+          totalProjects,
+          tasksCompleted,
+          totalTasks,
           totalHours,
+          billableHours,
+          nonBillableHours,
           totalInvoices,
           revenueChange: 12.5, // Mock data for now
           profitChange: 8.3 // Mock data for now
@@ -253,7 +372,10 @@ export default function AnalyticsPage() {
         expenseCategories,
         topProjects,
         revenueVsCosts,
-        hoursByProject
+        hoursByProject,
+        projectProgress,
+        resourceUtilization,
+        projectCostVsRevenue
       })
     } catch (error) {
       console.error('Error fetching analytics:', error)
@@ -371,6 +493,39 @@ export default function AnalyticsPage() {
       {/* Key Metrics - Live Dashboard Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
+          title="Total Projects"
+          value={analytics.summary.totalProjects || 0}
+          icon={<FolderKanban className="h-4 w-4 text-muted-foreground" />}
+          description={`${analytics.summary.activeProjects} currently active`}
+          valueClassName="text-blue-600"
+        />
+        <MetricCard
+          title="Tasks Completed"
+          value={analytics.summary.tasksCompleted || 0}
+          icon={<Activity className="h-4 w-4 text-muted-foreground" />}
+          description={`${analytics.summary.totalTasks} total tasks`}
+          valueClassName="text-green-600"
+        />
+        <Card className="relative overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hours Logged</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.summary.totalHours.toFixed(1)}h</div>
+            <div className="flex gap-4 mt-2 text-xs">
+              <div>
+                <span className="text-green-600 font-semibold">{analytics.summary.billableHours.toFixed(1)}h</span>
+                <span className="text-muted-foreground ml-1">Billable</span>
+              </div>
+              <div>
+                <span className="text-orange-600 font-semibold">{analytics.summary.nonBillableHours.toFixed(1)}h</span>
+                <span className="text-muted-foreground ml-1">Non-billable</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <MetricCard
           title="Total Revenue"
           value={analytics.summary.totalRevenue || 0}
           unit="$"
@@ -379,6 +534,10 @@ export default function AnalyticsPage() {
           valueClassName="text-emerald-500"
           trend={analytics.summary.revenueChange}
         />
+      </div>
+
+      {/* Secondary Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Net Profit"
           value={analytics.summary.totalProfit || 0}
@@ -394,6 +553,14 @@ export default function AnalyticsPage() {
           icon={<Repeat2 className="h-4 w-4 text-muted-foreground" />}
           description="Number of invoices recorded"
         />
+        <MetricCard
+          title="Total Costs"
+          value={analytics.summary.totalCosts || 0}
+          unit="$"
+          icon={<Receipt className="h-4 w-4 text-muted-foreground" />}
+          description="All expenses and vendor bills"
+          valueClassName="text-orange-600"
+        />
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Activity Status</CardTitle>
@@ -408,7 +575,7 @@ export default function AnalyticsPage() {
               Live
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {analytics.summary.activeProjects} active projects
+              Real-time data updates
             </p>
           </CardContent>
         </Card>
@@ -619,6 +786,133 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* New Charts Row 3 - Project Progress % */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Project Progress % */}
+        <div className="bg-card border rounded-xl p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Project Progress %
+          </h3>
+          {analytics.projectProgress.length > 0 ? (
+            <ScrollArea className="h-[350px]">
+              <div className="space-y-4 pr-4">
+                {analytics.projectProgress.map((project, index) => (
+                  <div key={index}>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="font-medium truncate flex-1">{project.name}</span>
+                      <span className="font-bold ml-2">{project.progress}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-3 rounded-full transition-all flex items-center justify-end pr-2"
+                        style={{ 
+                          width: `${project.progress}%`,
+                          backgroundColor: project.progress === 100 ? '#10b981' : 
+                                         project.progress >= 75 ? '#3b82f6' : 
+                                         project.progress >= 50 ? '#f59e0b' : '#ef4444'
+                        }}
+                      >
+                        {project.progress > 15 && (
+                          <span className="text-[10px] text-white font-semibold">
+                            {project.completed}/{project.total}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {project.completed} of {project.total} tasks completed
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex items-center justify-center h-[350px] text-muted-foreground">
+              No project progress data available
+            </div>
+          )}
+        </div>
+
+        {/* Resource Utilization */}
+        <div className="bg-card border rounded-xl p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Resource Utilization
+          </h3>
+          {analytics.resourceUtilization.length > 0 ? (
+            <ScrollArea className="h-[350px]">
+              <div className="space-y-4 pr-4">
+                {analytics.resourceUtilization.map((resource, index) => (
+                  <div key={index}>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="font-medium truncate flex-1">{resource.name}</span>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="text-muted-foreground">{resource.hours}h</span>
+                        <span className="font-bold">{resource.utilization}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-3 rounded-full transition-all"
+                        style={{ 
+                          width: `${resource.utilization}%`,
+                          backgroundColor: resource.utilization >= 90 ? '#ef4444' : 
+                                         resource.utilization >= 70 ? '#10b981' : 
+                                         resource.utilization >= 50 ? '#3b82f6' : '#f59e0b'
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {resource.utilization >= 90 ? 'Over-utilized' : 
+                       resource.utilization >= 70 ? 'Well-utilized' : 
+                       resource.utilization >= 50 ? 'Moderately utilized' : 'Under-utilized'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex items-center justify-center h-[350px] text-muted-foreground">
+              No resource utilization data available
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Project Cost vs Revenue Chart */}
+      <div className="bg-card border rounded-xl p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5" />
+          Project Cost vs Revenue
+        </h3>
+        {analytics.projectCostVsRevenue.length > 0 ? (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={analytics.projectCostVsRevenue} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
+              <XAxis type="number" stroke="#6b7280" />
+              <YAxis dataKey="name" type="category" stroke="#6b7280" width={150} />
+              <RechartsTooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
+                formatter={(value) => formatCurrency(value)}
+              />
+              <Legend />
+              <Bar dataKey="revenue" fill="#10b981" name="Revenue" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="profit" fill="#3b82f6" name="Profit" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+            No project financial data available
+          </div>
+        )}
+      </div>
+
       {/* Real-time Activity Section - Live Dashboard Style */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Latest Invoices */}
@@ -724,51 +1018,6 @@ export default function AnalyticsPage() {
 
       <Separator className="my-4" />
 
-      {/* Additional Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours Logged</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.summary.totalHours.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Across all projects and team members
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Costs</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-              {formatCurrency(analytics.summary.totalCosts)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              All expenses and vendor bills
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {analytics.summary.activeProjects}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Currently in progress
-            </p>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }
