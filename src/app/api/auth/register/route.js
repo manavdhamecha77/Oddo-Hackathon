@@ -9,40 +9,40 @@ export async function POST(req) {
     const { name, email, password, roleName } = await req.json();
 
     // check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.users.findUnique({ where: { email } });
     if (existingUser)
       return NextResponse.json({ error: "User already exists" }, { status: 400 });
 
     // find role, default to "team_member" which exists in seed/schema
     const defaultRoleName = "team_member";
-    const role = await prisma.role.findUnique({
+    const role = await prisma.roles.findUnique({
       where: { name: roleName || defaultRoleName },
     });
 
     if (!role)
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
 
-    // hash password -> store into passwordHash (schema field)
-    const passwordHash = await bcrypt.hash(password, 10);
+    // hash password -> store into password_hash (schema field)
+    const password_hash = await bcrypt.hash(password, 10);
 
     // split name into first/last (best-effort)
     const [firstName, ...rest] = (name || "").trim().split(" ");
     const lastName = rest.join(" ") || null;
 
     // create user with relation
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         email,
-        passwordHash,
-        firstName: firstName || null,
-        lastName,
-        role: { connect: { id: role.id } },
+        password_hash,
+        first_name: firstName || null,
+        last_name: lastName,
+        roles: { connect: { id: role.id } },
       },
-      include: { role: true },
+      include: { roles: true },
     });
 
     return NextResponse.json(
-      { message: "User registered successfully", user: { id: user.id, email: user.email, role: user.role.name, firstName: user.firstName, lastName: user.lastName } },
+      { message: "User registered successfully", user: { id: user.id, email: user.email, role: user.roles.name, firstName: user.first_name, lastName: user.last_name } },
       { status: 201 }
     );
   } catch (error) {

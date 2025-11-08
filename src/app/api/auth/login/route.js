@@ -7,24 +7,33 @@ const prisma = new PrismaClient();
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function POST(req) {
-  const { email, password } = await req.json();
-  const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
+  try {
+    const { email, password } = await req.json();
+    
+    const user = await prisma.users.findUnique({ 
+      where: { email }, 
+      include: { roles: true } 
+    });
 
-  // Compare against passwordHash (schema uses passwordHash, not password)
-  if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    // Compare against password_hash (schema uses password_hash field)
+    if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    const token = await new SignJWT({
+      id: user.id,
+      email: user.email,
+      role: user.roles?.name,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("1d")
+      .sign(secret);
+
+    const res = NextResponse.json({ message: "Login successful", token });
+    res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
+    return res;
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json({ error: "Login failed: " + error.message }, { status: 500 });
   }
-
-  const token = await new SignJWT({
-    id: user.id,
-    email: user.email,
-    role: user.role?.name,
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("1d")
-    .sign(secret);
-
-  const res = NextResponse.json({ message: "Login successful", token });
-  res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
-  return res;
 }

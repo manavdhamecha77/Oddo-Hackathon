@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,541 +7,399 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USERS & AUTHENTICATION
-// ============================================
+model customer_invoice_lines {
+  id                Int               @id @default(autoincrement())
+  invoice_id        Int
+  product_id        Int?
+  description       String
+  quantity          Decimal           @default(1) @db.Decimal(10, 2)
+  unit_price        Decimal           @db.Decimal(10, 2)
+  customer_invoices customer_invoices @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  products          products?         @relation(fields: [product_id], references: [id], onDelete: Restrict)
+}
 
-model Role {
+model customer_invoices {
+  id                     Int                      @id @default(autoincrement())
+  invoice_number         String                   @unique @db.VarChar(100)
+  project_id             Int?
+  sales_order_id         Int?
+  customer_id            Int
+  invoice_date           DateTime                 @default(now()) @db.Date
+  due_date               DateTime?                @db.Date
+  status                 customer_invoice_status  @default(draft)
+  total_amount           Decimal                  @default(0.00) @db.Decimal(12, 2)
+  paid_amount            Decimal                  @default(0.00) @db.Decimal(12, 2)
+  notes                  String?
+  created_by             Int?
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime
+  customer_invoice_lines customer_invoice_lines[]
+  users                  users?                   @relation(fields: [created_by], references: [id])
+  partners               partners                 @relation(fields: [customer_id], references: [id])
+  projects               projects?                @relation(fields: [project_id], references: [id])
+  sales_orders           sales_orders?            @relation(fields: [sales_order_id], references: [id])
+
+  @@index([project_id])
+}
+
+model expenses {
+  id                                Int            @id @default(autoincrement())
+  expense_number                    String         @unique @db.VarChar(100)
+  project_id                        Int?
+  user_id                           Int
+  category                          String         @db.VarChar(100)
+  description                       String
+  amount                            Decimal        @db.Decimal(10, 2)
+  expense_date                      DateTime       @default(now()) @db.Date
+  is_billable                       Boolean        @default(false)
+  status                            expense_status @default(submitted)
+  receipt_path                      String?        @db.VarChar(500)
+  approved_by                       Int?
+  approved_at                       DateTime?
+  notes                             String?
+  created_at                        DateTime       @default(now())
+  updated_at                        DateTime
+  users_expenses_approved_byTousers users?         @relation("expenses_approved_byTousers", fields: [approved_by], references: [id])
+  projects                          projects?      @relation(fields: [project_id], references: [id])
+  users_expenses_user_idTousers     users          @relation("expenses_user_idTousers", fields: [user_id], references: [id])
+
+  @@index([project_id])
+  @@index([user_id])
+}
+
+model partners {
+  id                Int                 @id @default(autoincrement())
+  name              String              @db.VarChar(255)
+  type              partner_type
+  email             String?             @db.VarChar(255)
+  phone             String?             @db.VarChar(50)
+  address           String?
+  created_at        DateTime            @default(now())
+  updated_at        DateTime
+  customer_invoices customer_invoices[]
+  projects          projects[]
+  purchase_orders   purchase_orders[]
+  sales_orders      sales_orders[]
+  vendor_bills      vendor_bills[]
+}
+
+model products {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @db.VarChar(255)
+  description            String?
+  unit_price             Decimal                  @db.Decimal(10, 2)
+  cost_price             Decimal?                 @db.Decimal(10, 2)
+  is_service             Boolean                  @default(false)
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime
+  customer_invoice_lines customer_invoice_lines[]
+  purchase_order_lines   purchase_order_lines[]
+  sales_order_lines      sales_order_lines[]
+  vendor_bill_lines      vendor_bill_lines[]
+}
+
+model project_members {
+  id          Int      @id @default(autoincrement())
+  project_id  Int
+  user_id     Int
+  role        String?  @db.VarChar(100)
+  assigned_at DateTime @default(now())
+  projects    projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, user_id])
+}
+
+model projects {
+  id                 Int                 @id @default(autoincrement())
+  name               String              @db.VarChar(255)
+  description        String?
+  project_manager_id Int?
+  customer_id        Int?
+  status             project_status      @default(planned)
+  start_date         DateTime?           @db.Date
+  end_date           DateTime?           @db.Date
+  deadline           DateTime?           @db.Date
+  budget             Decimal             @default(0.00) @db.Decimal(12, 2)
+  progress           Decimal             @default(0.00) @db.Decimal(5, 2)
+  created_at         DateTime            @default(now())
+  updated_at         DateTime
+  customer_invoices  customer_invoices[]
+  expenses           expenses[]
+  project_members    project_members[]
+  partners           partners?           @relation(fields: [customer_id], references: [id])
+  users              users?              @relation(fields: [project_manager_id], references: [id])
+  purchase_orders    purchase_orders[]
+  sales_orders       sales_orders[]
+  tasks              tasks[]
+  timesheets         timesheets[]
+  vendor_bills       vendor_bills[]
+
+  @@index([project_manager_id])
+  @@index([status])
+}
+
+model purchase_order_lines {
+  id                Int             @id @default(autoincrement())
+  purchase_order_id Int
+  product_id        Int?
+  description       String
+  quantity          Decimal         @default(1) @db.Decimal(10, 2)
+  unit_price        Decimal         @db.Decimal(10, 2)
+  products          products?       @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  purchase_orders   purchase_orders @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+}
+
+model purchase_orders {
+  id                   Int                    @id @default(autoincrement())
+  order_number         String                 @unique @db.VarChar(100)
+  project_id           Int?
+  vendor_id            Int
+  order_date           DateTime               @default(now()) @db.Date
+  status               purchase_order_status  @default(draft)
+  total_amount         Decimal                @default(0.00) @db.Decimal(12, 2)
+  notes                String?
+  created_by           Int?
+  created_at           DateTime               @default(now())
+  updated_at           DateTime
+  purchase_order_lines purchase_order_lines[]
+  users                users?                 @relation(fields: [created_by], references: [id])
+  projects             projects?              @relation(fields: [project_id], references: [id])
+  partners             partners               @relation(fields: [vendor_id], references: [id])
+  vendor_bills         vendor_bills[]
+
+  @@index([project_id])
+}
+
+model roles {
   id          Int     @id @default(autoincrement())
   name        String  @unique @db.VarChar(50)
   description String? @db.VarChar(255)
-  
-  // Relations
-  users User[]
-
-  @@map("roles")
+  users       users[]
 }
 
-model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  firstName    String?  @map("first_name") @db.VarChar(100)
-  lastName     String?  @map("last_name") @db.VarChar(100)
-  roleId       Int      @map("role_id")
-  role         Role     @relation(fields: [roleId], references: [id])
-  hourlyRate   Decimal  @default(0.00) @map("hourly_rate") @db.Decimal(10, 2)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  managedProjects      Project[]          @relation("ProjectManager")
-  projectMemberships   ProjectMember[]
-  assignedTasks        Task[]             @relation("AssignedTo")
-  createdTasks         Task[]             @relation("CreatedBy")
-  taskComments         TaskComment[]
-  taskAttachments      TaskAttachment[]
-  timesheets           Timesheet[]
-  createdSalesOrders   SalesOrder[]       @relation("CreatedBy")
-  createdPurchaseOrders PurchaseOrder[]   @relation("CreatedBy")
-  createdInvoices      CustomerInvoice[]  @relation("CreatedBy")
-  createdBills         VendorBill[]       @relation("CreatedBy")
-  expenses             Expense[]          @relation("ExpenseUser")
-  approvedExpenses     Expense[]          @relation("ApprovedBy")
-
-  @@map("users")
+model sales_order_lines {
+  id             Int          @id @default(autoincrement())
+  sales_order_id Int
+  product_id     Int?
+  description    String
+  quantity       Decimal      @default(1) @db.Decimal(10, 2)
+  unit_price     Decimal      @db.Decimal(10, 2)
+  products       products?    @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  sales_orders   sales_orders @relation(fields: [sales_order_id], references: [id], onDelete: Cascade)
 }
 
+model sales_orders {
+  id                Int                 @id @default(autoincrement())
+  order_number      String              @unique @db.VarChar(100)
+  project_id        Int?
+  customer_id       Int
+  order_date        DateTime            @default(now()) @db.Date
+  status            sales_order_status  @default(draft)
+  total_amount      Decimal             @default(0.00) @db.Decimal(12, 2)
+  notes             String?
+  created_by        Int?
+  created_at        DateTime            @default(now())
+  updated_at        DateTime
+  customer_invoices customer_invoices[]
+  sales_order_lines sales_order_lines[]
+  users             users?              @relation(fields: [created_by], references: [id])
+  partners          partners            @relation(fields: [customer_id], references: [id])
+  projects          projects?           @relation(fields: [project_id], references: [id])
 
-// ============================================
-// PARTNERS (CUSTOMERS & VENDORS)
-// ============================================
-
-model Partner {
-  id        Int         @id @default(autoincrement())
-  name      String      @db.VarChar(255)
-  type      PartnerType
-  email     String?     @db.VarChar(255)
-  phone     String?     @db.VarChar(50)
-  address   String?
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
-
-  // Relations
-  projectsAsCustomer Project[]         @relation("Customer")
-  salesOrders        SalesOrder[]
-  customerInvoices   CustomerInvoice[]
-  purchaseOrders     PurchaseOrder[]
-  vendorBills        VendorBill[]
-
-  @@map("partners")
+  @@index([project_id])
 }
 
-enum PartnerType {
-  customer
-  vendor
-  both
-
-  @@map("partner_type")
-}
-
-// ============================================
-// PRODUCTS
-// ============================================
-
-model Product {
+model task_attachments {
   id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  description String?
-  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
-  costPrice   Decimal? @map("cost_price") @db.Decimal(10, 2)
-  isService   Boolean  @default(false) @map("is_service")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  salesOrderLines      SalesOrderLine[]
-  purchaseOrderLines   PurchaseOrderLine[]
-  customerInvoiceLines CustomerInvoiceLine[]
-  vendorBillLines      VendorBillLine[]
-
-  @@map("products")
+  task_id     Int
+  file_name   String   @db.VarChar(255)
+  file_path   String   @db.VarChar(500)
+  file_size   Int?
+  uploaded_by Int?
+  uploaded_at DateTime @default(now())
+  tasks       tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  users       users?   @relation(fields: [uploaded_by], references: [id])
 }
 
-// ============================================
-// PROJECTS
-// ============================================
-
-model Project {
-  id                Int            @id @default(autoincrement())
-  name              String         @db.VarChar(255)
-  description       String?
-  projectManagerId  Int?           @map("project_manager_id")
-  customerId        Int?           @map("customer_id")
-  status            ProjectStatus  @default(planned)
-  startDate         DateTime?      @map("start_date") @db.Date
-  endDate           DateTime?      @map("end_date") @db.Date
-  deadline          DateTime?      @db.Date
-  budget            Decimal        @default(0.00) @db.Decimal(12, 2)
-  progress          Decimal        @default(0.00) @db.Decimal(5, 2)
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
-
-  // Relations
-  projectManager   User?             @relation("ProjectManager", fields: [projectManagerId], references: [id], onDelete: SetNull)
-  customer         Partner?          @relation("Customer", fields: [customerId], references: [id], onDelete: SetNull)
-  members          ProjectMember[]
-  tasks            Task[]
-  timesheets       Timesheet[]
-  salesOrders      SalesOrder[]
-  purchaseOrders   PurchaseOrder[]
-  customerInvoices CustomerInvoice[]
-  vendorBills      VendorBill[]
-  expenses         Expense[]
-
-  @@index([status])
-  @@index([projectManagerId])
-  @@map("projects")
-}
-
-enum ProjectStatus {
-  planned
-  in_progress
-  completed
-  on_hold
-
-  @@map("project_status")
-}
-
-// ============================================
-// PROJECT TEAM MEMBERS
-// ============================================
-
-model ProjectMember {
+model task_comments {
   id         Int      @id @default(autoincrement())
-  projectId  Int      @map("project_id")
-  userId     Int      @map("user_id")
-  role       String?  @db.VarChar(100)
-  assignedAt DateTime @default(now()) @map("assigned_at")
-
-  // Relations
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, userId])
-  @@map("project_members")
+  task_id    Int
+  user_id    Int
+  comment    String
+  created_at DateTime @default(now())
+  tasks      tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
-// ============================================
-// TASKS
-// ============================================
+model tasks {
+  id                             Int                @id @default(autoincrement())
+  project_id                     Int
+  title                          String             @db.VarChar(255)
+  description                    String?
+  assigned_to                    Int?
+  status                         task_status        @default(new)
+  priority                       task_priority      @default(medium)
+  due_date                       DateTime?          @db.Date
+  estimated_hours                Decimal?           @db.Decimal(8, 2)
+  actual_hours                   Decimal            @default(0.00) @db.Decimal(8, 2)
+  blocker_reason                 String?
+  created_by                     Int?
+  created_at                     DateTime           @default(now())
+  updated_at                     DateTime
+  task_attachments               task_attachments[]
+  task_comments                  task_comments[]
+  users_tasks_assigned_toTousers users?             @relation("tasks_assigned_toTousers", fields: [assigned_to], references: [id])
+  users_tasks_created_byTousers  users?             @relation("tasks_created_byTousers", fields: [created_by], references: [id])
+  projects                       projects           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  timesheets                     timesheets[]
 
-model Task {
-  id             Int         @id @default(autoincrement())
-  projectId      Int         @map("project_id")
-  title          String      @db.VarChar(255)
-  description    String?
-  assignedTo     Int?        @map("assigned_to")
-  status         TaskStatus  @default(new)
-  priority       TaskPriority @default(medium)
-  dueDate        DateTime?   @map("due_date") @db.Date
-  estimatedHours Decimal?    @map("estimated_hours") @db.Decimal(8, 2)
-  actualHours    Decimal     @default(0.00) @map("actual_hours") @db.Decimal(8, 2)
-  blockerReason  String?     @map("blocker_reason")
-  createdBy      Int?        @map("created_by")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
-
-  // Relations
-  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignedUser User?           @relation("AssignedTo", fields: [assignedTo], references: [id], onDelete: SetNull)
-  creator     User?            @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  comments    TaskComment[]
-  attachments TaskAttachment[]
-  timesheets  Timesheet[]
-
-  @@index([projectId])
-  @@index([assignedTo])
+  @@index([assigned_to])
+  @@index([project_id])
   @@index([status])
-  @@map("tasks")
 }
 
-enum TaskStatus {
-  new
-  in_progress
-  blocked
-  done
-
-  @@map("task_status")
-}
-
-enum TaskPriority {
-  low
-  medium
-  high
-  urgent
-
-  @@map("task_priority")
-}
-
-// ============================================
-// TASK COMMENTS
-// ============================================
-
-model TaskComment {
-  id        Int      @id @default(autoincrement())
-  taskId    Int      @map("task_id")
-  userId    Int      @map("user_id")
-  comment   String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("task_comments")
-}
-
-// ============================================
-// TASK ATTACHMENTS
-// ============================================
-
-model TaskAttachment {
-  id         Int      @id @default(autoincrement())
-  taskId     Int      @map("task_id")
-  fileName   String   @map("file_name") @db.VarChar(255)
-  filePath   String   @map("file_path") @db.VarChar(500)
-  fileSize   Int?     @map("file_size")
-  uploadedBy Int?     @map("uploaded_by")
-  uploadedAt DateTime @default(now()) @map("uploaded_at")
-
-  // Relations
-  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  uploader User? @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
-
-  @@map("task_attachments")
-}
-
-// ============================================
-// TIMESHEETS
-// ============================================
-
-model Timesheet {
+model timesheets {
   id          Int      @id @default(autoincrement())
-  taskId      Int      @map("task_id")
-  userId      Int      @map("user_id")
-  projectId   Int      @map("project_id")
-  workDate    DateTime @map("work_date") @db.Date
+  task_id     Int
+  user_id     Int
+  project_id  Int
+  work_date   DateTime @db.Date
   hours       Decimal  @db.Decimal(8, 2)
-  isBillable  Boolean  @default(true) @map("is_billable")
-  hourlyRate  Decimal  @map("hourly_rate") @db.Decimal(10, 2)
+  is_billable Boolean  @default(true)
+  hourly_rate Decimal  @db.Decimal(10, 2)
   description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  created_at  DateTime @default(now())
+  updated_at  DateTime
+  projects    projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  tasks       tasks    @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  // Relations
-  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([projectId])
-  @@index([workDate])
-  @@map("timesheets")
+  @@index([project_id])
+  @@index([user_id])
+  @@index([work_date])
 }
 
-// ============================================
-// SALES ORDERS
-// ============================================
-
-model SalesOrder {
-  id           Int              @id @default(autoincrement())
-  orderNumber  String           @unique @map("order_number") @db.VarChar(100)
-  projectId    Int?             @map("project_id")
-  customerId   Int              @map("customer_id")
-  orderDate    DateTime         @default(now()) @map("order_date") @db.Date
-  status       SalesOrderStatus @default(draft)
-  totalAmount  Decimal          @default(0.00) @map("total_amount") @db.Decimal(12, 2)
-  notes        String?
-  createdBy    Int?             @map("created_by")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  project         Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  customer        Partner             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  creator         User?               @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  lines           SalesOrderLine[]
-  customerInvoices CustomerInvoice[]
-
-  @@index([projectId])
-  @@map("sales_orders")
+model users {
+  id                                   Int                 @id @default(autoincrement())
+  email                                String              @unique
+  password_hash                        String
+  first_name                           String?             @db.VarChar(100)
+  last_name                            String?             @db.VarChar(100)
+  role_id                              Int
+  hourly_rate                          Decimal             @default(0.00) @db.Decimal(10, 2)
+  is_active                            Boolean             @default(true)
+  created_at                           DateTime            @default(now())
+  updated_at                           DateTime
+  customer_invoices                    customer_invoices[]
+  expenses_expenses_approved_byTousers expenses[]          @relation("expenses_approved_byTousers")
+  expenses_expenses_user_idTousers     expenses[]          @relation("expenses_user_idTousers")
+  project_members                      project_members[]
+  projects                             projects[]
+  purchase_orders                      purchase_orders[]
+  sales_orders                         sales_orders[]
+  task_attachments                     task_attachments[]
+  task_comments                        task_comments[]
+  tasks_tasks_assigned_toTousers       tasks[]             @relation("tasks_assigned_toTousers")
+  tasks_tasks_created_byTousers        tasks[]             @relation("tasks_created_byTousers")
+  timesheets                           timesheets[]
+  roles                                roles               @relation(fields: [role_id], references: [id])
+  vendor_bills                         vendor_bills[]
 }
 
-enum SalesOrderStatus {
-  draft
-  confirmed
-  done
-  cancelled
-
-  @@map("sales_order_status")
+model vendor_bill_lines {
+  id           Int          @id @default(autoincrement())
+  bill_id      Int
+  product_id   Int?
+  description  String
+  quantity     Decimal      @default(1) @db.Decimal(10, 2)
+  unit_price   Decimal      @db.Decimal(10, 2)
+  vendor_bills vendor_bills @relation(fields: [bill_id], references: [id], onDelete: Cascade)
+  products     products?    @relation(fields: [product_id], references: [id], onDelete: Restrict)
 }
 
-model SalesOrderLine {
-  id            Int     @id @default(autoincrement())
-  salesOrderId  Int     @map("sales_order_id")
-  productId     Int?    @map("product_id")
-  description   String
-  quantity      Decimal @default(1) @db.Decimal(10, 2)
-  unitPrice     Decimal @map("unit_price") @db.Decimal(10, 2)
+model vendor_bills {
+  id                Int                 @id @default(autoincrement())
+  bill_number       String              @unique @db.VarChar(100)
+  project_id        Int?
+  purchase_order_id Int?
+  vendor_id         Int
+  bill_date         DateTime            @default(now()) @db.Date
+  due_date          DateTime?           @db.Date
+  status            vendor_bill_status  @default(draft)
+  total_amount      Decimal             @default(0.00) @db.Decimal(12, 2)
+  paid_amount       Decimal             @default(0.00) @db.Decimal(12, 2)
+  notes             String?
+  created_by        Int?
+  created_at        DateTime            @default(now())
+  updated_at        DateTime
+  vendor_bill_lines vendor_bill_lines[]
+  users             users?              @relation(fields: [created_by], references: [id])
+  projects          projects?           @relation(fields: [project_id], references: [id])
+  purchase_orders   purchase_orders?    @relation(fields: [purchase_order_id], references: [id])
+  partners          partners            @relation(fields: [vendor_id], references: [id])
 
-  // Relations
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  product    Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@map("sales_order_lines")
+  @@index([project_id])
 }
 
-// ============================================
-// PURCHASE ORDERS
-// ============================================
-
-model PurchaseOrder {
-  id           Int                 @id @default(autoincrement())
-  orderNumber  String              @unique @map("order_number") @db.VarChar(100)
-  projectId    Int?                @map("project_id")
-  vendorId     Int                 @map("vendor_id")
-  orderDate    DateTime            @default(now()) @map("order_date") @db.Date
-  status       PurchaseOrderStatus @default(draft)
-  totalAmount  Decimal             @default(0.00) @map("total_amount") @db.Decimal(12, 2)
-  notes        String?
-  createdBy    Int?                @map("created_by")
-  createdAt    DateTime            @default(now()) @map("created_at")
-  updatedAt    DateTime            @updatedAt @map("updated_at")
-
-  // Relations
-  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  vendor      Partner             @relation(fields: [vendorId], references: [id], onDelete: Restrict)
-  creator     User?               @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  lines       PurchaseOrderLine[]
-  vendorBills VendorBill[]
-
-  @@index([projectId])
-  @@map("purchase_orders")
-}
-
-enum PurchaseOrderStatus {
-  draft
-  sent
-  received
-  cancelled
-
-  @@map("purchase_order_status")
-}
-
-model PurchaseOrderLine {
-  id              Int     @id @default(autoincrement())
-  purchaseOrderId Int     @map("purchase_order_id")
-  productId       Int?    @map("product_id")
-  description     String
-  quantity        Decimal @default(1) @db.Decimal(10, 2)
-  unitPrice       Decimal @map("unit_price") @db.Decimal(10, 2)
-
-  // Relations
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product       Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@map("purchase_order_lines")
-}
-
-// ============================================
-// CUSTOMER INVOICES
-// ============================================
-
-model CustomerInvoice {
-  id            Int                   @id @default(autoincrement())
-  invoiceNumber String                @unique @map("invoice_number") @db.VarChar(100)
-  projectId     Int?                  @map("project_id")
-  salesOrderId  Int?                  @map("sales_order_id")
-  customerId    Int                   @map("customer_id")
-  invoiceDate   DateTime              @default(now()) @map("invoice_date") @db.Date
-  dueDate       DateTime?             @map("due_date") @db.Date
-  status        CustomerInvoiceStatus @default(draft)
-  totalAmount   Decimal               @default(0.00) @map("total_amount") @db.Decimal(12, 2)
-  paidAmount    Decimal               @default(0.00) @map("paid_amount") @db.Decimal(12, 2)
-  notes         String?
-  createdBy     Int?                  @map("created_by")
-  createdAt     DateTime              @default(now()) @map("created_at")
-  updatedAt     DateTime              @updatedAt @map("updated_at")
-
-  // Relations
-  project    Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  salesOrder SalesOrder?           @relation(fields: [salesOrderId], references: [id], onDelete: SetNull)
-  customer   Partner               @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  creator    User?                 @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  lines      CustomerInvoiceLine[]
-
-  @@index([projectId])
-  @@map("customer_invoices")
-}
-
-enum CustomerInvoiceStatus {
+enum customer_invoice_status {
   draft
   sent
   paid
   cancelled
-
-  @@map("customer_invoice_status")
 }
 
-model CustomerInvoiceLine {
-  id          Int     @id @default(autoincrement())
-  invoiceId   Int     @map("invoice_id")
-  productId   Int?    @map("product_id")
-  description String
-  quantity    Decimal @default(1) @db.Decimal(10, 2)
-  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
-
-  // Relations
-  invoice CustomerInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  product Product?        @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@map("customer_invoice_lines")
-}
-
-// ============================================
-// VENDOR BILLS
-// ============================================
-
-model VendorBill {
-  id               Int              @id @default(autoincrement())
-  billNumber       String           @unique @map("bill_number") @db.VarChar(100)
-  projectId        Int?             @map("project_id")
-  purchaseOrderId  Int?             @map("purchase_order_id")
-  vendorId         Int              @map("vendor_id")
-  billDate         DateTime         @default(now()) @map("bill_date") @db.Date
-  dueDate          DateTime?        @map("due_date") @db.Date
-  status           VendorBillStatus @default(draft)
-  totalAmount      Decimal          @default(0.00) @map("total_amount") @db.Decimal(12, 2)
-  paidAmount       Decimal          @default(0.00) @map("paid_amount") @db.Decimal(12, 2)
-  notes            String?
-  createdBy        Int?             @map("created_by")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  project       Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  vendor        Partner           @relation(fields: [vendorId], references: [id], onDelete: Restrict)
-  creator       User?             @relation("CreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  lines         VendorBillLine[]
-
-  @@index([projectId])
-  @@map("vendor_bills")
-}
-
-enum VendorBillStatus {
-  draft
-  posted
-  paid
-  cancelled
-
-  @@map("vendor_bill_status")
-}
-
-model VendorBillLine {
-  id          Int     @id @default(autoincrement())
-  billId      Int     @map("bill_id")
-  productId   Int?    @map("product_id")
-  description String
-  quantity    Decimal @default(1) @db.Decimal(10, 2)
-  unitPrice   Decimal @map("unit_price") @db.Decimal(10, 2)
-
-  // Relations
-  bill    VendorBill @relation(fields: [billId], references: [id], onDelete: Cascade)
-  product Product?   @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@map("vendor_bill_lines")
-}
-
-// ============================================
-// EXPENSES
-// ============================================
-
-model Expense {
-  id            Int           @id @default(autoincrement())
-  expenseNumber String        @unique @map("expense_number") @db.VarChar(100)
-  projectId     Int?          @map("project_id")
-  userId        Int           @map("user_id")
-  category      String        @db.VarChar(100)
-  description   String
-  amount        Decimal       @db.Decimal(10, 2)
-  expenseDate   DateTime      @default(now()) @map("expense_date") @db.Date
-  isBillable    Boolean       @default(false) @map("is_billable")
-  status        ExpenseStatus @default(submitted)
-  receiptPath   String?       @map("receipt_path") @db.VarChar(500)
-  approvedBy    Int?          @map("approved_by")
-  approvedAt    DateTime?     @map("approved_at")
-  notes         String?
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-
-  // Relations
-  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  user     User     @relation("ExpenseUser", fields: [userId], references: [id], onDelete: Restrict)
-  approver User?    @relation("ApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
-
-  @@index([projectId])
-  @@index([userId])
-  @@map("expenses")
-}
-
-enum ExpenseStatus {
+enum expense_status {
   submitted
   approved
   rejected
   reimbursed
+}
 
-  @@map("expense_status")
+enum partner_type {
+  customer
+  vendor
+  both
+}
+
+enum project_status {
+  planned
+  in_progress
+  completed
+  on_hold
+}
+
+enum purchase_order_status {
+  draft
+  sent
+  received
+  cancelled
+}
+
+enum sales_order_status {
+  draft
+  confirmed
+  done
+  cancelled
+}
+
+enum task_priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum task_status {
+  new
+  in_progress
+  blocked
+  done
+}
+
+enum vendor_bill_status {
+  draft
+  posted
+  paid
+  cancelled
 }
