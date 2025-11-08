@@ -39,6 +39,8 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
   const [isLoading, setIsLoading] = useState(true)
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false)
   const [showSalesOrderModal, setShowSalesOrderModal] = useState(false)
+  const [showPOForm, setShowPOForm] = useState(false)
+  const [selectedPO, setSelectedPO] = useState(null)
   const [project, setProject] = useState(null)
   
   const [salesOrders, setSalesOrders] = useState([])
@@ -579,6 +581,23 @@ export default function ProjectLinksPanel({ projectId, userRole }) {
           projectId={projectId}
           projectName={project?.name || 'Project'}
           onSuccess={() => {
+            fetchAllLinks()
+          }}
+        />
+      )}
+
+      {showPOForm && (
+        <PurchaseOrderForm
+          projectId={projectId}
+          existingPO={selectedPO}
+          isOpen={showPOForm}
+          onClose={() => {
+            setShowPOForm(false)
+            setSelectedPO(null)
+          }}
+          onSuccess={() => {
+            setShowPOForm(false)
+            setSelectedPO(null)
             fetchAllLinks()
           }}
         />
