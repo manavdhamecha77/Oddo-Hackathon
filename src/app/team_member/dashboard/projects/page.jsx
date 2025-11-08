@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter, MoreVertical, Loader2 } from 'lucide-react'
+import { Search, Filter, MoreVertical, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -65,12 +65,6 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-bold mb-2">Projects</h1>
           <p className="text-muted-foreground">Manage all your projects and track their profitability</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/projects/create">
-            <Plus className="w-4 h-4 mr-2" />
-            New Project
-          </Link>
-        </Button>
       </div>
 
       {/* Search and Filter */}
@@ -97,14 +91,6 @@ export default function ProjectsPage() {
           <p className="text-muted-foreground mb-4">
             {searchQuery ? 'No projects found matching your search' : 'No projects yet'}
           </p>
-          {!searchQuery && (
-            <Button asChild>
-              <Link href="/dashboard/projects/create">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Project
-              </Link>
-            </Button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

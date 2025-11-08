@@ -42,10 +42,10 @@ export async function POST(req) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Check if user is PM or Admin (allow all roles for now during development)
-    // if (!['project_manager', 'admin'].includes(user.role)) {
-    //   return NextResponse.json({ error: "Forbidden: Only Project Managers can create projects" }, { status: 403 });
-    // }
+    // Only project_manager and admin roles can create projects
+    if (!['project_manager', 'admin'].includes(user.role)) {
+      return NextResponse.json({ error: "Forbidden: Only Project Managers and Admins can create projects" }, { status: 403 });
+    }
 
     const { name, description, startDate, dueDate, budget, status } = await req.json();
 
