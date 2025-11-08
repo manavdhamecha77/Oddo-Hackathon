@@ -20,6 +20,9 @@ export async function GET(req, { params }) {
         projectManager: {
           companyId: user.companyId
         }
+      },
+      include: {
+        projectManager: true
       }
     });
 

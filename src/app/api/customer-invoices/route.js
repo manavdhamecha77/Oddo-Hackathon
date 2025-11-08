@@ -26,7 +26,7 @@ export async function GET(req) {
       whereClause.projectId = parseInt(projectId);
     }
 
-    // CRITICAL: Filter by companyId to prevent cross-company data access
+    // Filter by companyId to prevent cross-company data access
     const invoices = await prisma.customerInvoice.findMany({
       where: whereClause,
       include: {
