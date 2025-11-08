@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Banknote } from 'lucide-react'
+import { Plus, TrendingUp, DollarSign, Users, AlertCircle, Loader2, Banknote } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -25,17 +25,42 @@ export default function AdminDashboard() {
         const userData = await userRes.json();
         setUser(userData);
 
-        // Fetch projects
-        const projectsRes = await fetch("/api/projects", { credentials: "include" });
+        // Fetch all data in parallel
+        const [projectsRes, usersRes] = await Promise.all([
+          fetch("/api/projects", { credentials: "include" }),
+          fetch("/api/users", { credentials: "include" })
+        ]);
+
+        let totalPendingTasks = 0;
+        
         if (projectsRes.ok) {
           const projectsData = await projectsRes.json();
           setProjects(projectsData.slice(0, 4)); // Get only 4 most recent
           
-          // Calculate basic stats from projects
+          // Fetch tasks for each project to count pending tasks
+          const taskPromises = projectsData.map(project => 
+            fetch(`/api/projects/${project.id}/tasks`, { credentials: "include" })
+              .then(res => res.ok ? res.json() : [])
+              .catch(() => [])
+          );
+          
+          const allTasksArrays = await Promise.all(taskPromises);
+          const allTasks = allTasksArrays.flat();
+          
+          // Count pending tasks (not completed)
+          totalPendingTasks = allTasks.filter(task => 
+            task.status !== 'done' && task.status !== 'completed'
+          ).length;
+          
+          // Calculate stats
           const activeProjects = projectsData.filter(p => p.status === 'in_progress').length;
+          const teamMembers = usersRes.ok ? (await usersRes.json()).filter(u => u.isActive).length : 0;
+          
           setStats({
             activeProjects,
             totalProjects: projectsData.length,
+            teamMembers,
+            pendingTasks: totalPendingTasks,
           });
         }
       } catch (error) {
@@ -100,10 +125,10 @@ export default function AdminDashboard() {
         <div className="bg-card border rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm text-muted-foreground">Team Members</span>
-            <Clock className="w-5 h-5 text-purple-500" />
+            <Users className="w-5 h-5 text-purple-500" />
           </div>
-          <div className="text-3xl font-bold mb-1">-</div>
-          <p className="text-sm text-muted-foreground">Coming soon</p>
+          <div className="text-3xl font-bold mb-1">{stats?.teamMembers || 0}</div>
+          <p className="text-sm text-muted-foreground">Active members</p>
         </div>
 
         <div className="bg-card border rounded-xl p-6">
@@ -111,8 +136,8 @@ export default function AdminDashboard() {
             <span className="text-sm text-muted-foreground">Pending Tasks</span>
             <AlertCircle className="w-5 h-5 text-orange-500" />
           </div>
-          <div className="text-3xl font-bold mb-1">-</div>
-          <p className="text-sm text-muted-foreground">Coming soon</p>
+          <div className="text-3xl font-bold mb-1">{stats?.pendingTasks || 0}</div>
+          <p className="text-sm text-muted-foreground">Across all projects</p>
         </div>
       </div>
 
