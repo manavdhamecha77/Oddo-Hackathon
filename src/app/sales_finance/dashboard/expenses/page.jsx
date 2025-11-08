@@ -134,15 +134,9 @@ export default function ExpensesPage() {
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Expenses</h1>
-          <p className="text-muted-foreground">Submit and track project expenses</p>
+          <h1 className="text-3xl font-bold mb-2">Expense Approvals</h1>
+          <p className="text-muted-foreground">Approve Project Manager and Admin expenses</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/expenses/create">
-            <Plus className="w-4 h-4 mr-2" />
-            New Expense
-          </Link>
-        </Button>
       </div>
 
       <div className="bg-card border rounded-xl">
@@ -167,13 +161,7 @@ export default function ExpensesPage() {
           <div className="p-12 text-center">
             <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No expenses found</h3>
-            <p className="text-muted-foreground mb-4">Start submitting expenses to see them here</p>
-            <Button asChild>
-              <Link href="/dashboard/expenses/create">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Expense
-              </Link>
-            </Button>
+            <p className="text-muted-foreground">Expenses requiring your approval will appear here</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -184,6 +172,7 @@ export default function ExpensesPage() {
                   <th className="text-left p-4 font-medium text-sm">Category</th>
                   <th className="text-left p-4 font-medium text-sm">Description</th>
                   <th className="text-left p-4 font-medium text-sm">Submitted By</th>
+                  <th className="text-left p-4 font-medium text-sm">Role</th>
                   <th className="text-left p-4 font-medium text-sm">Date</th>
                   <th className="text-left p-4 font-medium text-sm">Amount</th>
                   <th className="text-left p-4 font-medium text-sm">Status</th>
@@ -198,6 +187,11 @@ export default function ExpensesPage() {
                     <td className="p-4">{expense.description}</td>
                     <td className="p-4">
                       {expense.user?.firstName} {expense.user?.lastName}
+                    </td>
+                    <td className="p-4">
+                      <span className="text-xs px-2 py-1 rounded bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 capitalize">
+                        {expense.user?.role?.name?.replace('_', ' ')}
+                      </span>
                     </td>
                     <td className="p-4">{new Date(expense.expenseDate).toLocaleDateString()}</td>
                     <td className="p-4 font-medium">${Number(expense.amount).toFixed(2)}</td>
@@ -230,8 +224,8 @@ export default function ExpensesPage() {
                         </div>
                       ) : expense.status === 'submitted' && !canApproveExpense(expense) ? (
                         <span className="text-xs text-muted-foreground">
-                          {expense.user?.role?.name === 'project_manager' || expense.user?.role?.name === 'admin' 
-                            ? 'Requires Sales/Finance approval' 
+                          {expense.user?.role?.name === 'team_member' 
+                            ? 'Requires Project Manager approval' 
                             : 'No permission to approve'}
                         </span>
                       ) : null}

@@ -36,7 +36,15 @@ export async function GET(req) {
       include: {
         project: true,
         user: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+          select: { 
+            id: true, 
+            firstName: true, 
+            lastName: true, 
+            email: true,
+            role: {
+              select: { name: true }
+            }
+          }
         }
       },
       orderBy: { expenseDate: 'desc' }

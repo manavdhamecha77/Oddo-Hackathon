@@ -22,6 +22,14 @@ export async function GET(req) {
         customer: {
           select: { id: true, name: true }
         },
+        members: {
+          select: {
+            userId: true,
+            user: {
+              select: { id: true, firstName: true, lastName: true }
+            }
+          }
+        },
         _count: {
           select: { tasks: true }
         }
