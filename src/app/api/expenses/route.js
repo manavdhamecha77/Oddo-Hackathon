@@ -8,20 +8,38 @@ export async function GET(req) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get('projectId');
+    const billed = searchParams.get('billed');
+
+    // Build where clause
+    const whereClause = {
+      user: {
+        companyId: user.companyId
+      }
+    };
+
+    // Filter by project if provided
+    if (projectId) {
+      whereClause.projectId = parseInt(projectId);
+    }
+
+    // Filter by billed status if provided
+    if (billed !== null) {
+      whereClause.isBilled = billed === 'true';
+    }
+
     // CRITICAL: Filter by companyId to prevent cross-company data access
     const expenses = await prisma.expense.findMany({
-      where: {
-        submittedBy: {
-          companyId: user.companyId
-        }
-      },
+      where: whereClause,
       include: {
         project: true,
-        submittedBy: {
-          select: { id: true, name: true, email: true }
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         }
       },
-      orderBy: { date: 'desc' }
+      orderBy: { expenseDate: 'desc' }
     });
 
     return NextResponse.json(expenses);

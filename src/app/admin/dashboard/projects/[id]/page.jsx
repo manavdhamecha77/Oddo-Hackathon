@@ -1,11 +1,33 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import LinksPanel from '@/components/billing/LinksPanel'
+import ProjectMembersPanel from '@/components/project/ProjectMembersPanel'
 
 export default function ProjectDetailPage({ params }) {
   const { id } = params
+  const [userRole, setUserRole] = useState(null)
+  const [isLoadingUser, setIsLoadingUser] = useState(true)
+
+  useEffect(() => {
+    fetchUserRole()
+  }, [])
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const userData = await response.json()
+        setUserRole(userData.role)
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+    } finally {
+      setIsLoadingUser(false)
+    }
+  }
 
   // Mock data
   const project = {
@@ -105,40 +127,31 @@ export default function ProjectDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Links Panel */}
-      <div className="mb-8 bg-card border rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Financial Documents</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href={`/dashboard/sales-orders?project=${id}`} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-            <FileText className="w-5 h-5 text-blue-500" />
-            <div>
-              <p className="font-medium text-sm">Sales Orders</p>
-              <p className="text-xs text-muted-foreground">2 orders</p>
-            </div>
-          </Link>
-          <Link href={`/dashboard/purchase-orders?project=${id}`} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-            <FileText className="w-5 h-5 text-purple-500" />
-            <div>
-              <p className="font-medium text-sm">Purchase Orders</p>
-              <p className="text-xs text-muted-foreground">3 orders</p>
-            </div>
-          </Link>
-          <Link href={`/dashboard/invoices?project=${id}`} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-            <Receipt className="w-5 h-5 text-green-500" />
-            <div>
-              <p className="font-medium text-sm">Invoices</p>
-              <p className="text-xs text-muted-foreground">5 invoices</p>
-            </div>
-          </Link>
-          <Link href={`/dashboard/vendor-bills?project=${id}`} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-            <DollarSign className="w-5 h-5 text-orange-500" />
-            <div>
-              <p className="font-medium text-sm">Vendor Bills</p>
-              <p className="text-xs text-muted-foreground">4 bills</p>
-            </div>
-          </Link>
+      {/* Project Team Members */}
+      {isLoadingUser ? (
+        <div className="mb-8 bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-8">
+          <ProjectMembersPanel projectId={id} userRole={userRole} />
+        </div>
+      )}
+
+      {/* Links Panel with Billing Engine */}
+      {isLoadingUser ? (
+        <div className="mb-8 bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <LinksPanel projectId={id} userRole={userRole} />
+        </div>
+      )}
 
       {/* Kanban Board */}
       <div className="bg-card border rounded-xl p-6">

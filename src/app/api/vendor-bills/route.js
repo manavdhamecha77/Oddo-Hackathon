@@ -8,15 +8,27 @@ export async function GET(req) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get('projectId');
+
+    // Build where clause
+    const whereClause = {
+      project: {
+        projectManager: {
+          companyId: user.companyId
+        }
+      }
+    };
+
+    // Filter by project if provided
+    if (projectId) {
+      whereClause.projectId = parseInt(projectId);
+    }
+
     // CRITICAL: Filter by companyId to prevent cross-company data access
     const vendorBills = await prisma.vendorBill.findMany({
-      where: {
-        project: {
-          projectManager: {
-            companyId: user.companyId
-          }
-        }
-      },
+      where: whereClause,
       include: {
         project: true,
         lines: true

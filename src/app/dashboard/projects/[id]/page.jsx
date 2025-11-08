@@ -1,16 +1,70 @@
 'use client'
-import React, { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import AddTaskModal from '@/components/AddTaskModal'
 
 export default function ProjectDetailPage({ params }) {
-  const { id } = params
+  const resolvedParams = use(params)
+  const { id } = resolvedParams
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [tasks, setTasks] = useState({ todo: [], inProgress: [], review: [], done: [] })
+  const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState(null)
 
-  // Mock data
+  useEffect(() => {
+    if (!id) return
+    fetch(`/api/projects/${id}/kanban`)
+      .then(res => res.ok ? res.json() : { todo: [], inProgress: [], review: [], done: [] })
+      .then(data => setTasks(data))
+      .catch(() => setTasks({ todo: [], inProgress: [], review: [], done: [] }))
+      .finally(() => setLoading(false))
+
+    // Get user role
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUserRole(data?.role))
+      .catch(() => setUserRole(null))
+  }, [id])
+
+  const handleTaskCreated = (task) => {
+    const statusMap = { 'new': 'todo', 'in_progress': 'inProgress', 'blocked': 'review', 'done': 'done' }
+    const column = statusMap[task.status]
+    setTasks(prev => ({ ...prev, [column]: [task, ...prev[column]] }))
+  }
+
+  const handleStatusChange = async (taskId, newStatus, currentColumn) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update status')
+
+      const updatedTask = await res.json()
+      const statusMap = { 'new': 'todo', 'in_progress': 'inProgress', 'blocked': 'review', 'done': 'done' }
+      const newColumn = statusMap[newStatus]
+
+      setTasks(prev => ({
+        ...prev,
+        [currentColumn]: prev[currentColumn].filter(t => t.id !== taskId),
+        [newColumn]: [updatedTask, ...prev[newColumn]]
+      }))
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      alert('Failed to update task status')
+    }
+  }
+
+  const canEditStatus = userRole === 'admin' || userRole === 'project_manager'
+
   const project = {
-    id,
-    name: 'Website Redesign',
+    projectId: id,
+    title: 'Website Redesign',
     client: 'TechCorp',
     description: 'Complete redesign of the company website with modern UI/UX',
     status: 'In Progress',
@@ -22,36 +76,60 @@ export default function ProjectDetailPage({ params }) {
     profit: '$12,450'
   }
 
-  const tasks = {
-    todo: [
-      { id: 1, title: 'Create wireframes', assignee: 'John Doe', priority: 'High' },
-      { id: 2, title: 'Setup development environment', assignee: 'Jane Smith', priority: 'Medium' },
-    ],
-    inProgress: [
-      { id: 3, title: 'Design homepage', assignee: 'John Doe', priority: 'High' },
-      { id: 4, title: 'Implement authentication', assignee: 'Mike Johnson', priority: 'High' },
-    ],
-    review: [
-      { id: 5, title: 'Complete database schema', assignee: 'Sarah Williams', priority: 'Medium' },
-    ],
-    done: [
-      { id: 6, title: 'Project kickoff meeting', assignee: 'John Doe', priority: 'High' },
-      { id: 7, title: 'Requirements gathering', assignee: 'Jane Smith', priority: 'High' },
-    ]
+  const getPriorityColor = (priority) => {
+    const p = priority?.toLowerCase()
+    if (p === 'urgent' || p === 'high') return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+    if (p === 'medium') return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+    if (p === 'low') return 'text-green-600 bg-green-50 dark:bg-green-900/20'
+    return 'text-gray-600 bg-gray-50'
   }
 
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'High': return 'text-red-600 bg-red-50 dark:bg-red-900/20'
-      case 'Medium': return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
-      case 'Low': return 'text-green-600 bg-green-50 dark:bg-green-900/20'
-      default: return 'text-gray-600 bg-gray-50'
-    }
+  const formatAssignee = (task) => {
+    if (!task.assignedUser) return 'Unassigned'
+    const name = `${task.assignedUser.firstName || ''} ${task.assignedUser.lastName || ''}`.trim()
+    return name || task.assignedUser.email
+  }
+
+  const renderTaskCard = (task, columnKey) => {
+    const statusOptions = [
+      { value: 'new', label: 'To Do' },
+      { value: 'in_progress', label: 'In Progress' },
+      { value: 'blocked', label: 'Review' },
+      { value: 'done', label: 'Done' }
+    ]
+
+    return (
+      <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between mb-2">
+          <h4 className="font-medium text-sm">{task.title}</h4>
+          <button className="p-1 hover:bg-muted rounded">
+            <MoreVertical className="w-3 h-3" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-2">{formatAssignee(task)}</p>
+        <div className="flex items-center justify-between gap-2">
+          <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
+            {task.priority}
+          </span>
+          {canEditStatus && (
+            <select
+              value={task.status}
+              onChange={(e) => handleStatusChange(task.id, e.target.value, columnKey)}
+              className="text-xs px-2 py-1 border rounded bg-background"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-8">
         <Button variant="ghost" size="sm" className="mb-4" asChild>
           <Link href="/dashboard/projects">
@@ -59,21 +137,20 @@ export default function ProjectDetailPage({ params }) {
             Back to Projects
           </Link>
         </Button>
-        
+
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
             <p className="text-muted-foreground mb-4">{project.client}</p>
             <p className="text-sm text-muted-foreground max-w-2xl">{project.description}</p>
           </div>
-          <Button>
+          <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Task
           </Button>
         </div>
       </div>
 
-      {/* Financial Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
@@ -105,7 +182,6 @@ export default function ProjectDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Links Panel */}
       <div className="mb-8 bg-card border rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4">Financial Documents</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -140,107 +216,67 @@ export default function ProjectDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Kanban Board */}
       <div className="bg-card border rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-6">Task Board</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* To Do Column */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">To Do</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
-            </div>
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading tasks...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-3">
-              {tasks.todo.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">To Do</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
+              </div>
+              <div className="space-y-3">
+                {tasks.todo.map(task => renderTaskCard(task, 'todo'))}
+              </div>
             </div>
-          </div>
 
-          {/* In Progress Column */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">In Progress</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
-            </div>
             <div className="space-y-3">
-              {tasks.inProgress.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">In Progress</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
+              </div>
+              <div className="space-y-3">
+                {tasks.inProgress.map(task => renderTaskCard(task, 'inProgress'))}
+              </div>
             </div>
-          </div>
 
-          {/* Review Column */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Review</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
-            </div>
             <div className="space-y-3">
-              {tasks.review.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">Review</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
+              </div>
+              <div className="space-y-3">
+                {tasks.review.map(task => renderTaskCard(task, 'review'))}
+              </div>
             </div>
-          </div>
 
-          {/* Done Column */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Done</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
-            </div>
             <div className="space-y-3">
-              {tasks.done.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow opacity-75">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">Done</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
+              </div>
+              <div className="space-y-3">
+                {tasks.done.map(task => (
+                  <div key={task.id} className="opacity-75">
+                    {renderTaskCard(task, 'done')}
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {id && (
+        <AddTaskModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          projectId={id}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
     </div>
   )
 }
