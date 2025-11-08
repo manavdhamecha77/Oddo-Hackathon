@@ -36,6 +36,9 @@ export default function TimesheetsPage() {
     entry.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalHours = timesheets.reduce((sum, t) => sum + parseFloat(t.hours || 0), 0)
+  const totalValue = timesheets.reduce((sum, t) => sum + (parseFloat(t.hours || 0) * parseFloat(t.hourlyRate || 0)), 0)
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
@@ -49,12 +52,27 @@ export default function TimesheetsPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Timesheets</h1>
-          <p className="text-muted-foreground">Log and track time spent on tasks</p>
+          <p className="text-muted-foreground">Track all company time entries and expenses</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Log Time
+        <Button asChild>
+          <Link href="/admin/dashboard/timesheets/create">
+            <Plus className="w-4 h-4 mr-2" />
+            Log Time
+          </Link>
         </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="bg-card border rounded-xl p-6">
+          <p className="text-sm text-muted-foreground mb-1">Total Hours (Company-wide)</p>
+          <p className="text-3xl font-bold">{totalHours.toFixed(2)}h</p>
+        </div>
+        <div className="bg-card border rounded-xl p-6">
+          <p className="text-sm text-muted-foreground mb-1">Total Cost (Company Expense)</p>
+          <p className="text-3xl font-bold text-red-600">${totalValue.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Negative cash flow</p>
+        </div>
       </div>
 
       <div className="bg-card border rounded-xl">
@@ -91,6 +109,8 @@ export default function TimesheetsPage() {
                   <th className="text-left p-4 font-medium text-sm">User</th>
                   <th className="text-left p-4 font-medium text-sm">Date</th>
                   <th className="text-left p-4 font-medium text-sm">Hours</th>
+                  <th className="text-left p-4 font-medium text-sm">Rate</th>
+                  <th className="text-left p-4 font-medium text-sm">Cost</th>
                   <th className="text-left p-4 font-medium text-sm">Billable</th>
                 </tr>
               </thead>
@@ -103,7 +123,9 @@ export default function TimesheetsPage() {
                       {entry.user?.firstName} {entry.user?.lastName}
                     </td>
                     <td className="p-4">{new Date(entry.workDate).toLocaleDateString()}</td>
-                    <td className="p-4 font-medium">{Number(entry.hours)}h</td>
+                    <td className="p-4 font-medium">{parseFloat(entry.hours).toFixed(2)}h</td>
+                    <td className="p-4 text-sm">${parseFloat(entry.hourlyRate || 0).toFixed(2)}</td>
+                    <td className="p-4 font-semibold text-sm">${(parseFloat(entry.hours) * parseFloat(entry.hourlyRate || 0)).toFixed(2)}</td>
                     <td className="p-4">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         entry.isBillable 

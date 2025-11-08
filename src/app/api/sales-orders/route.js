@@ -69,6 +69,10 @@ export async function POST(req) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { projectId, orderNumber, customerId, orderDate, totalAmount, status, lines } = await req.json();
+
+    if (!projectId || !orderNumber || !customerId) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     // Only sales_finance role can create sales orders
     if (user.role.name !== "sales_finance" && user.role.name !== "admin") {
       return NextResponse.json({ error: "Access denied: Sales & Finance role required" }, { status: 403 });

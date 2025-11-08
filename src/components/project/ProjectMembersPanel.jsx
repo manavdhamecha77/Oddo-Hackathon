@@ -136,7 +136,7 @@ export default function ProjectMembersPanel({ projectId, userRole }) {
     }
   }
 
-  const canManageMembers = ['ADMIN', 'PROJECT_MANAGER'].includes(userRole)
+  const canManageMembers = ['ADMIN', 'PROJECT_MANAGER'].includes(userRole?.toUpperCase())
 
   return (
     <div className="bg-card border rounded-xl p-6">

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react'
@@ -22,6 +22,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
   const [showEditTaskModal, setShowEditTaskModal] = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
   const [draggedTask, setDraggedTask] = useState(null)
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false)
 
   const [project, setProject] = useState({
     name: '',
@@ -32,6 +33,13 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
     progress: 0,
   })
 
+  const [allTasks, setAllTasks] = useState({
+    todo: [],
+    inProgress: [],
+    review: [],
+    done: [],
+  })
+
   const [tasks, setTasks] = useState({
     todo: [],
     inProgress: [],
@@ -40,6 +48,21 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
   })
 
   const [isLoadingTasks, setIsLoadingTasks] = useState(true)
+
+  // Auto-detect backLink based on user role if not provided
+  const getBackLink = () => {
+    if (backLink) return backLink
+    if (!userRole) return '/dashboard/projects'
+    
+    const roleLinks = {
+      admin: '/admin/dashboard/projects',
+      project_manager: '/project_manager/dashboard/projects',
+      team_member: '/team_member/dashboard/projects',
+      sales_finance: '/sales_finance/dashboard/projects',
+    }
+    
+    return roleLinks[userRole] || '/dashboard/projects'
+  }
 
   useEffect(() => {
     fetchUserRole()
@@ -77,7 +100,8 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           done: tasksData.filter(t => t.status === 'done'),
         }
         
-        setTasks(groupedTasks)
+        setAllTasks(groupedTasks)
+        filterTasks(groupedTasks, showMyTasksOnly)
       }
     } catch (error) {
       console.error('Error fetching tasks:', error)
@@ -85,6 +109,34 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       setIsLoadingTasks(false)
     }
   }
+
+  const filterTasks = useCallback((tasksToFilter, myTasksOnly) => {
+    if (!myTasksOnly || !currentUser) {
+      setTasks(tasksToFilter)
+      return
+    }
+
+    // Filter to show only tasks assigned to current user
+    const filtered = {
+      todo: tasksToFilter.todo?.filter(task => 
+        task.assignees?.some(a => a.user.id === currentUser.id)
+      ) || [],
+      inProgress: tasksToFilter.inProgress?.filter(task => 
+        task.assignees?.some(a => a.user.id === currentUser.id)
+      ) || [],
+      review: tasksToFilter.review?.filter(task => 
+        task.assignees?.some(a => a.user.id === currentUser.id)
+      ) || [],
+      done: tasksToFilter.done?.filter(task => 
+        task.assignees?.some(a => a.user.id === currentUser.id)
+      ) || [],
+    }
+    setTasks(filtered)
+  }, [currentUser])
+
+  useEffect(() => {
+    filterTasks(allTasks, showMyTasksOnly)
+  }, [showMyTasksOnly, allTasks, filterTasks])
 
   const fetchProjectMembers = async () => {
     try {
@@ -323,7 +375,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       {/* Header */}
       <div className="mb-8">
         <Button variant="ghost" size="sm" className="mb-4" asChild>
-          <Link href={backLink}>
+          <Link href={getBackLink()}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
           </Link>
@@ -388,7 +440,33 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
       {/* Kanban Board */}
       <div className="bg-card border rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-6">Task Board</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Task Board</h2>
+          
+          {/* Toggle My Tasks / All Tasks */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowMyTasksOnly(false)}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                !showMyTasksOnly 
+                  ? 'bg-primary text-primary-foreground font-medium' 
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              All Tasks
+            </button>
+            <button
+              onClick={() => setShowMyTasksOnly(true)}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                showMyTasksOnly 
+                  ? 'bg-primary text-primary-foreground font-medium' 
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              My Tasks
+            </button>
+          </div>
+        </div>
         {isLoadingTasks ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />

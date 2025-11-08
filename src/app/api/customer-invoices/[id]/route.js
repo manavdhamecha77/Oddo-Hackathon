@@ -14,10 +14,14 @@ export async function GET(req, { params }) {
       include: {
         project: true,
         lines: true,
-        billingTransactions: {
-          include: {
-            timesheet: true,
-            expense: true
+        customer: true,
+        salesOrder: true,
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
           }
         }
       }
@@ -61,10 +65,14 @@ export async function PUT(req, { params }) {
       include: {
         project: true,
         lines: true,
-        billingTransactions: {
-          include: {
-            timesheet: true,
-            expense: true
+        customer: true,
+        salesOrder: true,
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
           }
         }
       }

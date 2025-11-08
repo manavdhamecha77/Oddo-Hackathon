@@ -1,14 +1,25 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter, MoreVertical, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, Search, Filter, MoreVertical, Loader2, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import EditProjectModal from '@/components/EditProjectModal'
 import { toast } from 'sonner'
 
 export default function ProjectsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedProject, setSelectedProject] = useState(null)
 
   useEffect(() => {
     fetchProjects()
@@ -35,6 +46,45 @@ export default function ProjectsPage() {
     project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     project.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const handleEditProject = (e, project) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedProject(project)
+    setShowEditModal(true)
+  }
+
+  const handleDeleteProject = async (e, projectId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (res.ok) {
+        toast.success('Project deleted successfully')
+        fetchProjects()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete project')
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      toast.error('Failed to delete project')
+    }
+  }
+
+  const handleProjectUpdated = (updatedProject) => {
+    fetchProjects()
+    toast.success('Project updated successfully')
+  }
 
   const getStatusColor = (status) => {
     switch(status) {
@@ -119,9 +169,26 @@ export default function ProjectsPage() {
                 <h3 className="font-semibold text-lg mb-1">{project.name}</h3>
                 <p className="text-sm text-muted-foreground">{project.client}</p>
               </div>
-              <button className="p-1 hover:bg-muted rounded">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                  <button className="p-1 hover:bg-muted rounded">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => handleEditProject(e, project)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => handleDeleteProject(e, project.id)}
+                    variant="destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="mb-4">
@@ -160,6 +227,17 @@ export default function ProjectsPage() {
           ))}
         </div>
       )}
+
+      {/* Edit Project Modal */}
+      <EditProjectModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setSelectedProject(null)
+        }}
+        project={selectedProject}
+        onProjectUpdated={handleProjectUpdated}
+      />
     </div>
   )
 }

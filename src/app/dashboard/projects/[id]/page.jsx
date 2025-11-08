@@ -1,10 +1,10 @@
-'use client';
-import { use } from 'react';
-import { ProjectKanbanPage } from '@/components/project-kanban-page';
+'use client'
+import { use } from 'react'
+import ProjectTaskBoard from '@/components/ProjectTaskBoard'
 
 export default function ProjectDetailPage({ params }) {
-  const resolvedParams = use(params);
-  const { id } = resolvedParams;
+  const resolvedParams = use(params)
+  const { id } = resolvedParams
 
-  return <ProjectKanbanPage projectId={id} backLink="/dashboard/projects" />;
+  return <ProjectTaskBoard projectId={id} backLink="/dashboard/projects" />
 }

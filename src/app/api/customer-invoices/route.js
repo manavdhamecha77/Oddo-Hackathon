@@ -26,7 +26,7 @@ export async function GET(req) {
       whereClause.projectId = parseInt(projectId);
     }
 
-    // CRITICAL: Filter by companyId to prevent cross-company data access
+    // Filter by companyId to prevent cross-company data access
     const invoices = await prisma.customerInvoice.findMany({
       where: whereClause,
       include: {
@@ -57,32 +57,45 @@ export async function POST(req) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { projectId, invoiceNumber, customerName, invoiceDate, dueDate, totalAmount, status, lines } = await req.json();
+    const { projectId, invoiceNumber, customerId, invoiceDate, dueDate, totalAmount, status, lines } = await req.json();
 
-    if (!projectId || !invoiceNumber || !customerName) {
+    if (!projectId || !invoiceNumber || !customerId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // CRITICAL: Verify project belongs to user's company
+    const project = await prisma.project.findUnique({
+      where: { id: parseInt(projectId) },
+      include: {
+        projectManager: { select: { companyId: true } }
+      }
+    });
+
+    if (!project || project.projectManager.companyId !== user.companyId) {
+      return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
     }
 
     const invoice = await prisma.customerInvoice.create({
       data: {
         invoiceNumber,
-        customerName,
+        customerId: parseInt(customerId),
         invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,
         totalAmount: totalAmount ? parseFloat(totalAmount) : 0,
-        status: status || 'Draft',
+        status: status || 'draft',
         projectId: parseInt(projectId),
+        createdBy: user.id,
         lines: lines ? {
           create: lines.map(line => ({
             description: line.description,
             quantity: parseFloat(line.quantity),
-            unitPrice: parseFloat(line.unitPrice),
-            amount: parseFloat(line.amount)
+            unitPrice: parseFloat(line.unitPrice)
           }))
         } : undefined
       },
       include: {
         project: true,
+        customer: true,
         lines: true
       }
     });

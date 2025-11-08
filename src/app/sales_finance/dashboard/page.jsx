@@ -64,10 +64,9 @@ export default function SalesFinanceDashboard() {
           <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {user?.name}! Manage orders and finances.</p>
         </div>
         <Button asChild className="w-full sm:w-auto">
-          <Link href="/sales_finance/dashboard/sales-orders/create">
+          <Link href="/sales_finance/dashboard/projects">
             <Plus className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">New Sales Order</span>
-            <span className="sm:hidden">New Order</span>
+            View Projects
           </Link>
         </Button>
       </div>
@@ -114,18 +113,13 @@ export default function SalesFinanceDashboard() {
         <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold">Recent Projects</h2>
           <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-            <Link href="/sales_finance/dashboard/invoices">View All</Link>
+            <Link href="/sales_finance/dashboard/projects">View All Projects</Link>
           </Button>
         </div>
         {projects.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
-            <p className="text-muted-foreground mb-4">No invoices yet</p>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/sales_finance/dashboard/sales-orders/create">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Project
-              </Link>
-            </Button>
+            <p className="text-muted-foreground mb-4">No projects yet</p>
+            <p className="text-sm text-muted-foreground">Financial documents (SO, PO, Invoices, Bills) are managed within each project's Links tab</p>
           </div>
         ) : (
           <div className="divide-y">

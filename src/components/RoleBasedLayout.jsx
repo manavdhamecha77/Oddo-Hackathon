@@ -31,10 +31,6 @@ const roleNavItems = {
         { name: 'Projects', href: '/admin/dashboard/projects', icon: FolderKanban },
         { name: 'Timesheets', href: '/admin/dashboard/timesheets', icon: Clock },
         { name: 'Expenses', href: '/admin/dashboard/expenses', icon: Receipt },
-        { name: 'Sales Orders', href: '/admin/dashboard/sales-orders', icon: ShoppingCart },
-        { name: 'Purchase Orders', href: '/admin/dashboard/purchase-orders', icon: FileText },
-        { name: 'Invoices', href: '/admin/dashboard/invoices', icon: CreditCard },
-        { name: 'Vendor Bills', href: '/admin/dashboard/vendor-bills', icon: DollarSign },
         { name: 'Team Management', href: '/admin', icon: Users },
     ],
     project_manager: [
@@ -42,8 +38,6 @@ const roleNavItems = {
         { name: 'Analytics', href: '/project_manager/dashboard/analytics', icon: BarChart3 },
         { name: 'Projects', href: '/project_manager/dashboard/projects', icon: FolderKanban },
         { name: 'Timesheets', href: '/project_manager/dashboard/timesheets', icon: Clock },
-        { name: 'Expenses', href: '/project_manager/dashboard/expenses', icon: Receipt },
-        { name: 'Invoices', href: '/project_manager/dashboard/invoices', icon: CreditCard },
     ],
     team_member: [
         { name: 'Dashboard', href: '/team_member/dashboard', icon: LayoutDashboard },
@@ -54,10 +48,7 @@ const roleNavItems = {
     sales_finance: [
         { name: 'Dashboard', href: '/sales_finance/dashboard', icon: LayoutDashboard },
         { name: 'Analytics', href: '/sales_finance/dashboard/analytics', icon: BarChart3 },
-        { name: 'Sales Orders', href: '/sales_finance/dashboard/sales-orders', icon: ShoppingCart },
-        { name: 'Purchase Orders', href: '/sales_finance/dashboard/purchase-orders', icon: FileText },
-        { name: 'Invoices', href: '/sales_finance/dashboard/invoices', icon: CreditCard },
-        { name: 'Vendor Bills', href: '/sales_finance/dashboard/vendor-bills', icon: DollarSign },
+        { name: 'Projects', href: '/sales_finance/dashboard/projects', icon: FolderKanban },
     ]
 }
 

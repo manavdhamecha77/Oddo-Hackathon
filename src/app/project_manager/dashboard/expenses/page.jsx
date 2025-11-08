@@ -9,10 +9,24 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentUserRole, setCurrentUserRole] = useState(null)
 
   useEffect(() => {
+    fetchCurrentUser()
     fetchExpenses()
   }, [])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUserRole(userData.role?.toUpperCase())
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error)
+    }
+  }
 
   const fetchExpenses = async () => {
     try {
@@ -45,13 +59,16 @@ export default function ExpensesPage() {
         body: JSON.stringify({ action: 'approve' })
       })
 
-      if (!response.ok) throw new Error('Failed to approve expense')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to approve expense')
+      }
       
       toast.success('Expense approved successfully')
       fetchExpenses()
     } catch (error) {
       console.error('Error approving expense:', error)
-      toast.error('Failed to approve expense')
+      toast.error(error.message || 'Failed to approve expense')
     }
   }
 
@@ -65,14 +82,34 @@ export default function ExpensesPage() {
         body: JSON.stringify({ action: 'reject' })
       })
 
-      if (!response.ok) throw new Error('Failed to reject expense')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reject expense')
+      }
       
       toast.success('Expense rejected')
       fetchExpenses()
     } catch (error) {
       console.error('Error rejecting expense:', error)
-      toast.error('Failed to reject expense')
+      toast.error(error.message || 'Failed to reject expense')
     }
+  }
+
+  // Determine if current user can approve this expense
+  const canApproveExpense = (expense) => {
+    if (!currentUserRole) return false
+    
+    const submitterRole = expense.user?.role?.name?.toUpperCase()
+    
+    if (currentUserRole === 'ADMIN') {
+      return true // Admin can approve all
+    } else if (currentUserRole === 'PROJECT_MANAGER') {
+      return submitterRole === 'TEAM_MEMBER' // PM can only approve Team Member expenses
+    } else if (currentUserRole === 'SALES_FINANCE') {
+      return submitterRole !== 'TEAM_MEMBER' // Sales/Finance can approve PM and Admin expenses
+    }
+    
+    return false
   }
 
   const getStatusColor = (status) => {
@@ -170,7 +207,7 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="p-4">
-                      {expense.status === 'submitted' && (
+                      {expense.status === 'submitted' && canApproveExpense(expense) ? (
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
@@ -191,7 +228,13 @@ export default function ExpensesPage() {
                             Reject
                           </Button>
                         </div>
-                      )}
+                      ) : expense.status === 'submitted' && !canApproveExpense(expense) ? (
+                        <span className="text-xs text-muted-foreground">
+                          {expense.user?.role?.name === 'project_manager' || expense.user?.role?.name === 'admin' 
+                            ? 'Requires Sales/Finance approval' 
+                            : 'No permission to approve'}
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

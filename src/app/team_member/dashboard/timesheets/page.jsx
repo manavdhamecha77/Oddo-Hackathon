@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Clock, Filter, Search, Loader2 } from 'lucide-react'
+import { Plus, Clock, Filter, Search, Loader2, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -9,6 +9,7 @@ export default function TimesheetsPage() {
   const [timesheets, setTimesheets] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     fetchTimesheets()
@@ -26,6 +27,36 @@ export default function TimesheetsPage() {
       toast.error('Failed to load timesheets')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const exportToCSV = async () => {
+    try {
+      setExporting(true)
+      const response = await fetch('/api/timesheets/export', {
+        method: 'GET',
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to export timesheets')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = response.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || 'timesheets.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('Timesheets exported successfully')
+    } catch (error) {
+      console.error('Error exporting timesheets:', error)
+      toast.error('Failed to export timesheets')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -52,12 +83,22 @@ export default function TimesheetsPage() {
           <h1 className="text-3xl font-bold mb-2">Timesheets</h1>
           <p className="text-muted-foreground">Log and track time spent on tasks</p>
         </div>
-        <Button asChild>
-          <Link href="/team_member/dashboard/timesheets/create">
-            <Plus className="w-4 h-4 mr-2" />
-            Log Time
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToCSV} disabled={exporting || timesheets.length === 0}>
+            {exporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button asChild>
+            <Link href="/team_member/dashboard/timesheets/create">
+              <Plus className="w-4 h-4 mr-2" />
+              Log Time
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

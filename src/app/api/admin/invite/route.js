@@ -130,7 +130,22 @@ export async function GET(req) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ invitations });
+    // Get user data for all invitations
+    const invitationsWithUsers = await Promise.all(
+      invitations.map(async (inv) => {
+        // Find the user by email and company
+        const createdUser = await prisma.user.findFirst({
+          where: {
+            email: inv.email,
+            companyId: user.companyId,
+          },
+          select: { id: true },
+        });
+        return { ...inv, userId: createdUser?.id || null };
+      })
+    );
+
+    return NextResponse.json({ invitations: invitationsWithUsers });
   } catch (error) {
     console.error("Get invitations error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

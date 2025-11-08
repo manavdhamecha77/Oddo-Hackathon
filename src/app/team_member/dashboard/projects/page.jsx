@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Search, Filter, MoreVertical, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,12 +7,40 @@ import { toast } from 'sonner'
 
 export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [allProjects, setAllProjects] = useState([])
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [showMyProjectsOnly, setShowMyProjectsOnly] = useState(false)
 
-  useEffect(() => {
-    fetchProjects()
-  }, [])
+  const filterProjects = useCallback((projectsToFilter, myProjectsOnly) => {
+    if (!myProjectsOnly || !currentUser) {
+      setProjects(projectsToFilter)
+      return
+    }
+
+    // Filter to show only projects where user is a member or assigned to tasks
+    const filtered = projectsToFilter.filter(project => {
+      // Check if user is a project member
+      const isMember = project.members?.some(member => member.userId === currentUser.id)
+      // Check if user is the project manager
+      const isManager = project.projectManagerId === currentUser.id
+      return isMember || isManager
+    })
+    setProjects(filtered)
+  }, [currentUser])
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData)
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error)
+    }
+  }
 
   const fetchProjects = async () => {
     try {
@@ -22,7 +50,8 @@ export default function ProjectsPage() {
         throw new Error('Failed to fetch projects')
       }
       const data = await res.json()
-      setProjects(data)
+      setAllProjects(data)
+      filterProjects(data, showMyProjectsOnly)
     } catch (error) {
       console.error('Error fetching projects:', error)
       toast.error('Failed to load projects')
@@ -30,6 +59,15 @@ export default function ProjectsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchCurrentUser()
+    fetchProjects()
+  }, [])
+
+  useEffect(() => {
+    filterProjects(allProjects, showMyProjectsOnly)
+  }, [showMyProjectsOnly, allProjects, filterProjects])
 
   const filteredProjects = projects.filter(project =>
     project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -64,6 +102,30 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Projects</h1>
           <p className="text-muted-foreground">Manage all your projects and track their profitability</p>
+        </div>
+        
+        {/* Toggle My Projects / All Projects */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMyProjectsOnly(false)}
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              !showMyProjectsOnly 
+                ? 'bg-primary text-primary-foreground font-medium' 
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            All Projects
+          </button>
+          <button
+            onClick={() => setShowMyProjectsOnly(true)}
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              showMyProjectsOnly 
+                ? 'bg-primary text-primary-foreground font-medium' 
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            My Projects
+          </button>
         </div>
       </div>
 
