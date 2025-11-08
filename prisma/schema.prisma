@@ -7,12 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Defines user roles
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
   description String?
   users       User[]
 }
+
 
 model User {
   id        Int      @id @default(autoincrement())
