@@ -1,23 +1,56 @@
 'use client'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search, Filter, Loader2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 export default function InvoicesPage() {
-  const invoices = [
-    { id: 1, number: 'INV-001', project: 'Website Redesign', client: 'TechCorp', amount: '$15,000', date: '2025-11-01', status: 'Paid', dueDate: '2025-11-15' },
-    { id: 2, number: 'INV-002', project: 'Mobile App', client: 'StartupHub', amount: '$25,000', date: '2025-11-05', status: 'Pending', dueDate: '2025-11-20' },
-    { id: 3, number: 'INV-003', project: 'Website Redesign', client: 'TechCorp', amount: '$10,000', date: '2025-10-28', status: 'Overdue', dueDate: '2025-11-05' },
-  ]
+  const [invoices, setInvoices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  useEffect(() => {
+    fetchInvoices()
+  }, [])
+
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/invoices')
+      if (!response.ok) throw new Error('Failed to fetch invoices')
+      const data = await response.json()
+      setInvoices(data)
+    } catch (error) {
+      console.error('Error fetching invoices:', error)
+      toast.error('Failed to load invoices')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredInvoices = invoices.filter(invoice =>
+    invoice.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    invoice.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'Paid': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-      case 'Pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-      case 'Overdue': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-      default: return 'bg-gray-100 text-gray-800'
+    const colors = {
+      draft: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
+      sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
     }
+    return colors[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -42,6 +75,8 @@ export default function InvoicesPage() {
             <input
               type="text"
               placeholder="Search invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background"
             />
           </div>
@@ -51,38 +86,56 @@ export default function InvoicesPage() {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b">
-              <tr>
-                <th className="text-left p-4 font-medium text-sm">Invoice #</th>
-                <th className="text-left p-4 font-medium text-sm">Project</th>
-                <th className="text-left p-4 font-medium text-sm">Client</th>
-                <th className="text-left p-4 font-medium text-sm">Date</th>
-                <th className="text-left p-4 font-medium text-sm">Due Date</th>
-                <th className="text-left p-4 font-medium text-sm">Amount</th>
-                <th className="text-left p-4 font-medium text-sm">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-muted/50 cursor-pointer">
-                  <td className="p-4 font-medium">{invoice.number}</td>
-                  <td className="p-4">{invoice.project}</td>
-                  <td className="p-4">{invoice.client}</td>
-                  <td className="p-4">{new Date(invoice.date).toLocaleDateString()}</td>
-                  <td className="p-4">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                  <td className="p-4 font-semibold">{invoice.amount}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(invoice.status)}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
+        {filteredInvoices.length === 0 ? (
+          <div className="p-12 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No invoices found</h3>
+            <p className="text-muted-foreground mb-4">Create your first invoice to get started</p>
+            <Button asChild>
+              <Link href="/dashboard/invoices/create">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Invoice
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left p-4 font-medium text-sm">Invoice #</th>
+                  <th className="text-left p-4 font-medium text-sm">Project</th>
+                  <th className="text-left p-4 font-medium text-sm">Customer</th>
+                  <th className="text-left p-4 font-medium text-sm">Invoice Date</th>
+                  <th className="text-left p-4 font-medium text-sm">Due Date</th>
+                  <th className="text-left p-4 font-medium text-sm">Total</th>
+                  <th className="text-left p-4 font-medium text-sm">Paid</th>
+                  <th className="text-left p-4 font-medium text-sm">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {filteredInvoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-muted/50 cursor-pointer">
+                    <td className="p-4 font-medium">{invoice.invoiceNumber}</td>
+                    <td className="p-4">{invoice.project?.name || 'N/A'}</td>
+                    <td className="p-4">{invoice.customer?.name || 'N/A'}</td>
+                    <td className="p-4">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
+                    <td className="p-4">
+                      {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="p-4 font-semibold">${Number(invoice.totalAmount).toFixed(2)}</td>
+                    <td className="p-4">${Number(invoice.paidAmount).toFixed(2)}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(invoice.status)}`}>
+                        {invoice.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

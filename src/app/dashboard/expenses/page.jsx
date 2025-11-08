@@ -1,15 +1,59 @@
 'use client'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search, Filter, Loader2, Receipt } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 
 export default function ExpensesPage() {
-  const expenses = [
-    { id: 1, project: 'Website Redesign', description: 'Client meeting travel', amount: '$250', date: '2025-11-05', status: 'Unbilled', user: 'John Doe' },
-    { id: 2, project: 'Mobile App', description: 'Software license', amount: '$99', date: '2025-11-03', status: 'Billed', user: 'Jane Smith' },
-    { id: 3, project: 'Website Redesign', description: 'Stock photos', amount: '$150', date: '2025-11-01', status: 'Unbilled', user: 'Mike Johnson' },
-  ]
+  const [expenses, setExpenses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  useEffect(() => {
+    fetchExpenses()
+  }, [])
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/expenses')
+      if (!response.ok) throw new Error('Failed to fetch expenses')
+      const data = await response.json()
+      setExpenses(data)
+    } catch (error) {
+      console.error('Error fetching expenses:', error)
+      toast.error('Failed to load expenses')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredExpenses = expenses.filter(expense =>
+    expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.project?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    expense.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const getStatusColor = (status) => {
+    const colors = {
+      submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      reimbursed: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+    }
+    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-8">
@@ -33,6 +77,8 @@ export default function ExpensesPage() {
             <input
               type="text"
               placeholder="Search expenses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background"
             />
           </div>
@@ -42,40 +88,54 @@ export default function ExpensesPage() {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b">
-              <tr>
-                <th className="text-left p-4 font-medium text-sm">Project</th>
-                <th className="text-left p-4 font-medium text-sm">Description</th>
-                <th className="text-left p-4 font-medium text-sm">Submitted By</th>
-                <th className="text-left p-4 font-medium text-sm">Date</th>
-                <th className="text-left p-4 font-medium text-sm">Amount</th>
-                <th className="text-left p-4 font-medium text-sm">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {expenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-muted/50">
-                  <td className="p-4">{expense.project}</td>
-                  <td className="p-4">{expense.description}</td>
-                  <td className="p-4">{expense.user}</td>
-                  <td className="p-4">{new Date(expense.date).toLocaleDateString()}</td>
-                  <td className="p-4 font-medium">{expense.amount}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      expense.status === 'Billed' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                    }`}>
-                      {expense.status}
-                    </span>
-                  </td>
+        {filteredExpenses.length === 0 ? (
+          <div className="p-12 text-center">
+            <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No expenses found</h3>
+            <p className="text-muted-foreground mb-4">Start submitting expenses to see them here</p>
+            <Button asChild>
+              <Link href="/dashboard/expenses/create">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Expense
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b">
+                <tr>
+                  <th className="text-left p-4 font-medium text-sm">Project</th>
+                  <th className="text-left p-4 font-medium text-sm">Category</th>
+                  <th className="text-left p-4 font-medium text-sm">Description</th>
+                  <th className="text-left p-4 font-medium text-sm">Submitted By</th>
+                  <th className="text-left p-4 font-medium text-sm">Date</th>
+                  <th className="text-left p-4 font-medium text-sm">Amount</th>
+                  <th className="text-left p-4 font-medium text-sm">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {filteredExpenses.map((expense) => (
+                  <tr key={expense.id} className="hover:bg-muted/50">
+                    <td className="p-4">{expense.project?.name || 'N/A'}</td>
+                    <td className="p-4 capitalize">{expense.category}</td>
+                    <td className="p-4">{expense.description}</td>
+                    <td className="p-4">
+                      {expense.user?.firstName} {expense.user?.lastName}
+                    </td>
+                    <td className="p-4">{new Date(expense.expenseDate).toLocaleDateString()}</td>
+                    <td className="p-4 font-medium">${Number(expense.amount).toFixed(2)}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(expense.status)}`}>
+                        {expense.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )

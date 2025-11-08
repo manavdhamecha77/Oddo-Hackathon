@@ -1,34 +1,63 @@
 'use client'
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { toast } from 'sonner'
+
+const projectSchema = z.object({
+  name: z.string().min(3, 'Project name must be at least 3 characters'),
+  description: z.string().optional(),
+  startDate: z.string().min(1, 'Start date is required'),
+  dueDate: z.string().min(1, 'Due date is required'),
+  budget: z.string().optional(),
+  status: z.enum(['planned', 'in_progress', 'on_hold', 'completed'])
+})
 
 export default function CreateProjectPage() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    name: '',
-    client: '',
-    description: '',
-    startDate: '',
-    dueDate: '',
-    budget: '',
-    status: 'Planning'
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(projectSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      startDate: '',
+      dueDate: '',
+      budget: '',
+      status: 'planned'
+    }
   })
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    // TODO: API call to create project
-    console.log('Creating project:', formData)
-    // router.push('/dashboard/projects')
-  }
+  const onSubmit = async (data) => {
+    try {
+      setIsSubmitting(true)
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      })
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to create project')
+      }
+
+      const project = await res.json()
+      toast.success('Project created successfully!')
+      router.push(`/dashboard/projects/${project.id}`)
+    } catch (error) {
+      console.error('Error creating project:', error)
+      toast.error(error.message || 'Failed to create project')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -46,7 +75,7 @@ export default function CreateProjectPage() {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="max-w-3xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl">
         <div className="bg-card border rounded-xl p-6 space-y-6">
           {/* Project Name */}
           <div>
@@ -56,30 +85,13 @@ export default function CreateProjectPage() {
             <input
               type="text"
               id="name"
-              name="name"
-              required
-              value={formData.name}
-              onChange={handleChange}
+              {...register('name')}
               className="w-full px-4 py-2 border rounded-lg bg-background"
               placeholder="Enter project name"
             />
-          </div>
-
-          {/* Client */}
-          <div>
-            <label htmlFor="client" className="block text-sm font-medium mb-2">
-              Client Name *
-            </label>
-            <input
-              type="text"
-              id="client"
-              name="client"
-              required
-              value={formData.client}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-lg bg-background"
-              placeholder="Enter client name"
-            />
+            {errors.name && (
+              <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
+            )}
           </div>
 
           {/* Description */}
@@ -89,9 +101,7 @@ export default function CreateProjectPage() {
             </label>
             <textarea
               id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
+              {...register('description')}
               rows={4}
               className="w-full px-4 py-2 border rounded-lg bg-background"
               placeholder="Enter project description"
@@ -107,12 +117,12 @@ export default function CreateProjectPage() {
               <input
                 type="date"
                 id="startDate"
-                name="startDate"
-                required
-                value={formData.startDate}
-                onChange={handleChange}
+                {...register('startDate')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
               />
+              {errors.startDate && (
+                <p className="text-sm text-red-600 mt-1">{errors.startDate.message}</p>
+              )}
             </div>
             <div>
               <label htmlFor="dueDate" className="block text-sm font-medium mb-2">
@@ -121,12 +131,12 @@ export default function CreateProjectPage() {
               <input
                 type="date"
                 id="dueDate"
-                name="dueDate"
-                required
-                value={formData.dueDate}
-                onChange={handleChange}
+                {...register('dueDate')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
               />
+              {errors.dueDate && (
+                <p className="text-sm text-red-600 mt-1">{errors.dueDate.message}</p>
+              )}
             </div>
           </div>
 
@@ -134,14 +144,12 @@ export default function CreateProjectPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="budget" className="block text-sm font-medium mb-2">
-                Budget
+                Budget ($)
               </label>
               <input
                 type="number"
                 id="budget"
-                name="budget"
-                value={formData.budget}
-                onChange={handleChange}
+                {...register('budget')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
                 placeholder="0.00"
                 step="0.01"
@@ -153,15 +161,13 @@ export default function CreateProjectPage() {
               </label>
               <select
                 id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
+                {...register('status')}
                 className="w-full px-4 py-2 border rounded-lg bg-background"
               >
-                <option value="Planning">Planning</option>
-                <option value="In Progress">In Progress</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Completed">Completed</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="on_hold">On Hold</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
@@ -169,11 +175,20 @@ export default function CreateProjectPage() {
 
         {/* Actions */}
         <div className="mt-6 flex gap-4">
-          <Button type="submit">
-            <Save className="w-4 h-4 mr-2" />
-            Create Project
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Create Project
+              </>
+            )}
           </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>

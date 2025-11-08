@@ -11,6 +11,7 @@ import {
     ShoppingCart, 
     CreditCard, 
     DollarSign,
+    BarChart3,
     Settings,
     LogOut
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button'
 
 const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban },
     { name: 'Timesheets', href: '/dashboard/timesheets', icon: Clock },
     { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
