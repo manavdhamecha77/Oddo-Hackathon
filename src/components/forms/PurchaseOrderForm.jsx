@@ -251,7 +251,7 @@ export default function PurchaseOrderForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Building2 className="w-6 h-6" />
@@ -428,78 +428,82 @@ export default function PurchaseOrderForm({
                 Add Line
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="overflow-x-auto max-h-[300px] overflow-y-auto border rounded-md">
-                <table className="w-full">
-                  <thead className="sticky top-0 bg-background border-b">
-                    <tr>
-                      <th className="text-left p-2 min-w-[250px]">Description</th>
-                      <th className="text-right p-2 w-20">Qty</th>
-                      <th className="text-right p-2 w-28">Price ($)</th>
-                      <th className="text-right p-2 w-28">Subtotal ($)</th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formData.lines.map((line, index) => (
-                      <tr key={index} className="border-b hover:bg-muted/50">
-                        <td className="p-1.5">
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
+                {formData.lines.map((line, index) => (
+                  <div key={index} className="border rounded-lg p-4 bg-card">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="col-span-2">
+                          <Label htmlFor={`description-${index}`} className="text-xs mb-1 block">Description *</Label>
                           <Input
+                            id={`description-${index}`}
                             value={line.description}
                             onChange={(e) => handleLineChange(index, 'description', e.target.value)}
                             placeholder="Service or product description"
-                            className="h-8 text-sm"
+                            className="h-9 text-xs"
                             required
                           />
-                        </td>
-                        <td className="p-1.5">
+                        </div>
+                        <div className="col-span-1">
+                          <Label htmlFor={`quantity-${index}`} className="text-xs mb-1 block">Qty *</Label>
                           <Input
+                            id={`quantity-${index}`}
                             type="number"
                             min="0"
                             step="0.01"
                             value={line.quantity}
                             onChange={(e) => handleLineChange(index, 'quantity', e.target.value)}
-                            className="text-right h-8 text-sm"
+                            className="h-9 text-xs"
                             required
                           />
-                        </td>
-                        <td className="p-1.5">
+                        </div>
+                        <div className="col-span-1">
+                          <Label htmlFor={`unitPrice-${index}`} className="text-xs mb-1 block">Price *</Label>
                           <Input
+                            id={`unitPrice-${index}`}
                             type="number"
                             min="0"
                             step="0.01"
                             value={line.unitPrice}
                             onChange={(e) => handleLineChange(index, 'unitPrice', e.target.value)}
-                            className="text-right h-8 text-sm"
+                            className="h-9 text-xs"
                             required
                           />
-                        </td>
-                        <td className="p-1.5 text-right font-medium text-sm">
-                          ${((parseFloat(line.quantity) || 0) * (parseFloat(line.unitPrice) || 0)).toFixed(2)}
-                        </td>
-                        <td className="p-1.5">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleRemoveLine(index)}
-                            disabled={formData.lines.length === 1}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="sticky bottom-0 bg-background border-t">
-                    <tr className="font-bold">
-                      <td colSpan="3" className="text-right p-2 text-sm">Total:</td>
-                      <td className="text-right p-2 text-lg text-primary">${calculateTotal().toFixed(2)}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t pt-3">
+                        <div className="text-right text-xs">
+                          <p className="text-muted-foreground">Subtotal</p>
+                          <p className="font-semibold text-sm">${((parseFloat(line.quantity) || 0) * (parseFloat(line.unitPrice) || 0)).toFixed(2)}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveLine(index)}
+                          disabled={formData.lines.length === 1}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">${calculateTotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="font-semibold">Total</span>
+                  <span className="text-lg font-bold">${calculateTotal().toFixed(2)}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
