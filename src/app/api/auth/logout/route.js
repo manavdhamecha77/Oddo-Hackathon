@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 
-export async function POST() {
-  // Clear the JWT cookie
-  const res = NextResponse.json({ message: "Logged out" });
-  res.cookies.set("token", "", { expires: new Date(0) }); // remove token
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  path: "/",
+  secure: process.env.NODE_ENV === "production",
+  expires: new Date(0),
+  maxAge: 0,
+};
+
+export async function POST(req) {
+  // Clear cookie then redirect home (303 so POST becomes GET on redirect)
+  const res = NextResponse.redirect(new URL("/", req.url), 303);
+  res.cookies.set("token", "", cookieOptions);
+  return res;
+}
+
+// Also support GET to allow link-based logout
+export async function GET(req) {
+  const res = NextResponse.redirect(new URL("/", req.url), 302);
+  res.cookies.set("token", "", cookieOptions);
   return res;
 }
