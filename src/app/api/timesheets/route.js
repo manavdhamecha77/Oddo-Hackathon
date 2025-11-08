@@ -105,6 +105,12 @@ export async function POST(req) {
       );
     }
 
+    // Get user's hourly rate
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { hourlyRate: true }
+    });
+
     // Create timesheet entry
     const timesheet = await prisma.timesheet.create({
       data: {
@@ -114,7 +120,7 @@ export async function POST(req) {
         workDate: new Date(workDate),
         hours: hoursNum,
         isBillable: isBillable ?? true,
-        hourlyRate: user.hourlyRate,
+        hourlyRate: userData?.hourlyRate || 0,
         description: description || null
       },
       include: {

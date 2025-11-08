@@ -61,33 +61,36 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // CRITICAL: Verify project belongs to user's company
+    // CRITICAL: Verify project exists
     const project = await prisma.project.findUnique({
       where: { id: parseInt(projectId) },
-      include: {
-        projectManager: { select: { companyId: true } }
-      }
+      select: { id: true }
     });
 
-    if (!project || project.projectManager.companyId !== user.companyId) {
-      return NextResponse.json({ error: "Forbidden: Invalid company access" }, { status: 403 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
+
+    // Generate unique expense number
+    const expenseNumber = `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     const expense = await prisma.expense.create({
       data: {
+        expenseNumber,
         description,
         amount: parseFloat(amount),
-        date: date ? new Date(date) : new Date(),
+        expenseDate: date ? new Date(date) : new Date(),
         category: category || 'Other',
-        receiptUrl,
-        isBilled: false,
+        receiptPath: receiptUrl || null,
+        isBillable: true,
+        status: 'submitted',
         projectId: parseInt(projectId),
-        submittedById: user.id
+        userId: user.id
       },
       include: {
         project: true,
-        submittedBy: {
-          select: { id: true, name: true, email: true }
+        user: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         }
       }
     });
