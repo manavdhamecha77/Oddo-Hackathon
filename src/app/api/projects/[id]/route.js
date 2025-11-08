@@ -8,7 +8,7 @@ export async function GET(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
 
     const project = await prisma.project.findUnique({
       where: { id: parseInt(id) },
