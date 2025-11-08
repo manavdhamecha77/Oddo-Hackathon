@@ -13,6 +13,16 @@ async function main() {
     throw new Error("Prisma client model 'user' is not defined. Please ensure your schema.prisma is correct and Prisma client is generated.");
   }
 
+  // Company
+  const company = await prisma.company.upsert({
+    where: { companyId: "ONEFLOW001" },
+    update: {},
+    create: {
+      companyId: "ONEFLOW001",
+      name: "OneFlow Inc.",
+    },
+  });
+
   // Roles (align with schema.prisma)
   const adminRole = await prisma.role.upsert({
     where: { name: "admin" },
@@ -44,6 +54,7 @@ async function main() {
       passwordHash: await bcrypt.hash("admin123", 10),
       firstName: "Admin",
       lastName: "User",
+      company: { connect: { id: company.id } },
       role: { connect: { id: adminRole.id } },
     },
   });
@@ -56,6 +67,7 @@ async function main() {
       passwordHash: await bcrypt.hash("pm123", 10),
       firstName: "John",
       lastName: "Manager",
+      company: { connect: { id: company.id } },
       role: { connect: { id: pmRole.id } },
     },
   });
@@ -68,6 +80,7 @@ async function main() {
       passwordHash: await bcrypt.hash("dev123", 10),
       firstName: "Alice",
       lastName: "Developer",
+      company: { connect: { id: company.id } },
       role: { connect: { id: memberRole.id } },
     },
   });
@@ -80,6 +93,7 @@ async function main() {
       passwordHash: await bcrypt.hash("dev123", 10),
       firstName: "Bob",
       lastName: "Developer",
+      company: { connect: { id: company.id } },
       role: { connect: { id: memberRole.id } },
     },
   });
@@ -92,6 +106,7 @@ async function main() {
       passwordHash: await bcrypt.hash("sales123", 10),
       firstName: "Sarah",
       lastName: "Sales",
+      company: { connect: { id: company.id } },
       role: { connect: { id: salesRole.id } },
     },
   });

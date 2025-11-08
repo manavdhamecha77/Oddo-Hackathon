@@ -25,6 +25,7 @@ export default function LogTimePage() {
   const [tasks, setTasks] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [loadingTasks, setLoadingTasks] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     resolver: zodResolver(timesheetSchema),
@@ -39,8 +40,25 @@ export default function LogTimePage() {
   })
 
   useEffect(() => {
-    fetchProjects()
+    checkAuth()
   }, [])
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/me', { credentials: 'include' })
+      if (!response.ok) {
+        toast.error('Please log in to continue')
+        router.push('/login')
+        return
+      }
+      setIsCheckingAuth(false)
+      fetchProjects()
+    } catch (error) {
+      console.error('Auth check failed:', error)
+      toast.error('Authentication failed')
+      router.push('/login')
+    }
+  }
 
   const fetchProjects = async () => {
     try {
@@ -107,6 +125,17 @@ export default function LogTimePage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

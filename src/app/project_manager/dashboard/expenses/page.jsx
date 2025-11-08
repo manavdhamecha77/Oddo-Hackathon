@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Filter, Loader2, Receipt } from 'lucide-react'
+import { Plus, Search, Filter, Loader2, Receipt, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -36,6 +36,44 @@ export default function ExpensesPage() {
     expense.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     expense.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const handleApprove = async (expenseId) => {
+    try {
+      const response = await fetch(`/api/expenses/${expenseId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' })
+      })
+
+      if (!response.ok) throw new Error('Failed to approve expense')
+      
+      toast.success('Expense approved successfully')
+      fetchExpenses()
+    } catch (error) {
+      console.error('Error approving expense:', error)
+      toast.error('Failed to approve expense')
+    }
+  }
+
+  const handleReject = async (expenseId) => {
+    if (!confirm('Are you sure you want to reject this expense?')) return
+
+    try {
+      const response = await fetch(`/api/expenses/${expenseId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject' })
+      })
+
+      if (!response.ok) throw new Error('Failed to reject expense')
+      
+      toast.success('Expense rejected')
+      fetchExpenses()
+    } catch (error) {
+      console.error('Error rejecting expense:', error)
+      toast.error('Failed to reject expense')
+    }
+  }
 
   const getStatusColor = (status) => {
     const colors = {
@@ -112,6 +150,7 @@ export default function ExpensesPage() {
                   <th className="text-left p-4 font-medium text-sm">Date</th>
                   <th className="text-left p-4 font-medium text-sm">Amount</th>
                   <th className="text-left p-4 font-medium text-sm">Status</th>
+                  <th className="text-left p-4 font-medium text-sm">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -129,6 +168,30 @@ export default function ExpensesPage() {
                       <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusColor(expense.status)}`}>
                         {expense.status}
                       </span>
+                    </td>
+                    <td className="p-4">
+                      {expense.status === 'submitted' && (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleApprove(expense.id)}
+                            className="h-8"
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleReject(expense.id)}
+                            className="h-8"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

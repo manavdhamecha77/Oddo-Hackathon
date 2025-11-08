@@ -13,8 +13,12 @@ export async function GET(req, { params }) {
     const tasks = await prisma.task.findMany({
       where: { projectId: parseInt(id) },
       include: {
-        assignedUser: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true }
+            }
+          }
         },
         timesheets: {
           include: {
@@ -41,7 +45,7 @@ export async function POST(req, { params }) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    const { title, description, status, priority, assignedToId, dueDate } = await req.json();
+    const { title, description, status, priority, assignedUserIds, dueDate, estimatedHours } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -51,18 +55,49 @@ export async function POST(req, { params }) {
       data: {
         title,
         description,
-        status: status || 'TODO',
-        priority: priority || 'Medium',
+        status: status || 'new',
+        priority: priority || 'medium',
         projectId: parseInt(id),
-        assignedToId: assignedToId ? parseInt(assignedToId) : null,
-        dueDate: dueDate ? new Date(dueDate) : null
+        dueDate: dueDate ? new Date(dueDate) : null,
+        estimatedHours: estimatedHours ? parseFloat(estimatedHours) : null,
+        createdBy: user.id
       },
       include: {
-        assignedUser: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true }
+            }
+          }
         }
       }
     });
+
+    // Create task assignments if provided
+    if (assignedUserIds && assignedUserIds.length > 0) {
+      await prisma.taskAssignment.createMany({
+        data: assignedUserIds.map(userId => ({
+          taskId: task.id,
+          userId: parseInt(userId),
+          assignedBy: user.id
+        }))
+      });
+      
+      // Fetch task again to include assignees
+      const taskWithAssignees = await prisma.task.findUnique({
+        where: { id: task.id },
+        include: {
+          assignees: {
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, email: true }
+              }
+            }
+          }
+        }
+      });
+      return NextResponse.json(taskWithAssignees, { status: 201 });
+    }
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {

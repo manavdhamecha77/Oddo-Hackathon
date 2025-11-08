@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import { TaskModal } from '@/components/task-modal'
 
 export default function ProjectTaskBoard({ projectId, backLink }) {
   const [userRole, setUserRole] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
   const [showEditTaskModal, setShowEditTaskModal] = useState(false)
@@ -51,6 +53,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       if (response.ok) {
         const userData = await response.json()
         setUserRole(userData.role)
+        setCurrentUser(userData)
       }
     } catch (error) {
       console.error('Error fetching user role:', error)
@@ -192,6 +195,48 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
     }
   }
 
+  const handleSelfAssign = async (taskId) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/assign`, {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        toast.success('You have been assigned to this task')
+        fetchTasks()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to assign task')
+      }
+    } catch (error) {
+      console.error('Error assigning task:', error)
+      toast.error('Failed to assign task')
+    }
+  }
+
+  const handleSelfUnassign = async (taskId) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/assign`, {
+        method: 'DELETE',
+      })
+      
+      if (response.ok) {
+        toast.success('You have been unassigned from this task')
+        fetchTasks()
+      } else {
+        toast.error('Failed to unassign task')
+      }
+    } catch (error) {
+      console.error('Error unassigning task:', error)
+      toast.error('Failed to unassign task')
+    }
+  }
+
+  const isUserAssigned = (task) => {
+    if (!currentUser || !task.assignees) return false
+    return task.assignees.some(assignment => assignment.user.id === currentUser.id)
+  }
+
   const TaskCard = ({ task }) => (
     <div 
       key={task.id} 
@@ -223,14 +268,53 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {task.assignedUser && (
-        <p className="text-xs text-muted-foreground mb-2">
-          {task.assignedUser.firstName} {task.assignedUser.lastName}
-        </p>
+      
+      {/* Assignees */}
+      {task.assignees && task.assignees.length > 0 ? (
+        <div className="mb-2">
+          <p className="text-xs text-muted-foreground mb-1">Assigned to:</p>
+          <div className="flex flex-wrap gap-1">
+            {task.assignees.map((assignment) => (
+              <span 
+                key={assignment.user.id}
+                className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded"
+              >
+                {assignment.user.firstName} {assignment.user.lastName}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mb-2">Unassigned</p>
       )}
-      <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
-        {task.priority}
-      </span>
+      
+      <div className="flex items-center justify-between">
+        <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
+          {task.priority}
+        </span>
+        
+        {/* Self-assign button for team members */}
+        {currentUser && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isUserAssigned(task)) {
+                handleSelfUnassign(task.id)
+              } else {
+                handleSelfAssign(task.id)
+              }
+            }}
+            className="text-xs p-1 hover:bg-muted rounded transition-colors"
+            title={isUserAssigned(task) ? 'Unassign yourself' : 'Assign to yourself'}
+          >
+            {isUserAssigned(task) ? (
+              <UserMinus className="w-3.5 h-3.5 text-red-500" />
+            ) : (
+              <UserPlus className="w-3.5 h-3.5 text-green-500" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   )
 
