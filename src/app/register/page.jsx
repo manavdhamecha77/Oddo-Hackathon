@@ -1,31 +1,78 @@
 "use client"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: "", email: "", password: "" })
   const [msg, setMsg] = useState("")
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    if (res.ok) setMsg("Registration successful")
-    else setMsg(data.error || "Failed")
+    setLoading(true)
+    setMsg("")
+    
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      
+      if (res.ok) {
+        setMsg("Registration successful! Redirecting...")
+        // Redirect to admin dashboard after successful registration
+        setTimeout(() => {
+          router.push("/admin")
+        }, 1000)
+      } else {
+        setMsg(data.error || "Registration failed")
+      }
+    } catch (error) {
+      setMsg("An error occurred. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-2xl font-semibold mb-4">Register</h1>
+      <h1 className="text-2xl font-semibold mb-4">Register as Admin</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-64">
-        <input placeholder="Name" onChange={(e) => setForm({ ...form, name: e.target.value })}/>
-        <input placeholder="Email" onChange={(e) => setForm({ ...form, email: e.target.value })}/>
-        <input placeholder="Password" type="password" onChange={(e) => setForm({ ...form, password: e.target.value })}/>
-        <button className="bg-zinc-800 text-white py-2 rounded">Register</button>
-        <p className="text-sm text-gray-500">{msg}</p>
+        <input 
+          placeholder="Full Name" 
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+        />
+        <input 
+          placeholder="Email" 
+          type="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          required
+        />
+        <input 
+          placeholder="Password" 
+          type="password" 
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+          required
+          minLength={6}
+        />
+        <button 
+          className="bg-zinc-800 text-white py-2 rounded disabled:opacity-50" 
+          disabled={loading}
+        >
+          {loading ? "Registering..." : "Register"}
+        </button>
+        {msg && (
+          <p className={`text-sm ${msg.includes("successful") ? "text-green-600" : "text-red-600"}`}>
+            {msg}
+          </p>
+        )}
       </form>
     </div>
   )

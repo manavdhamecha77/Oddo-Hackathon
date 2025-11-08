@@ -7,9 +7,17 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchUser = async () => {
       const res = await fetch("/api/auth/me");
+      if (!res.ok) {
+        window.location.href = "/login";
+        return;
+      }
       const data = await res.json();
-      if (data.role !== "Admin") window.location.href = "/dashboard";
-      else setUser(data);
+      // Check for "admin" role (lowercase)
+      if (data.role !== "admin") {
+        window.location.href = "/dashboard";
+      } else {
+        setUser(data);
+      }
     };
     fetchUser();
   }, []);

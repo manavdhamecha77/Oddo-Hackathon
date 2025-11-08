@@ -1,22 +1,24 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
+import { SignJWT } from "jose";
 
 const prisma = new PrismaClient();
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function POST(req) {
   try {
-    const { name, email, password, roleName } = await req.json();
+    const { name, email, password } = await req.json();
 
     // check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser)
       return NextResponse.json({ error: "User already exists" }, { status: 400 });
 
-    // find role, default to "team_member" which exists in seed/schema
-    const defaultRoleName = "team_member";
+    // Assign "admin" role by default for new registrations
+    const defaultRoleName = "admin";
     const role = await prisma.role.findUnique({
-      where: { name: roleName || defaultRoleName },
+      where: { name: defaultRoleName },
     });
 
     if (!role)
@@ -41,10 +43,34 @@ export async function POST(req) {
       include: { role: true },
     });
 
-    return NextResponse.json(
-      { message: "User registered successfully", user: { id: user.id, email: user.email, role: user.role.name, firstName: user.firstName, lastName: user.lastName } },
+    // Generate JWT token
+    const token = await new SignJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role.name,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("1d")
+      .sign(secret);
+
+    const res = NextResponse.json(
+      { 
+        message: "User registered successfully", 
+        token,
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          role: user.role.name, 
+          firstName: user.firstName, 
+          lastName: user.lastName 
+        } 
+      },
       { status: 201 }
     );
+
+    // Set token as httpOnly cookie
+    res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
+    return res;
   } catch (error) {
     console.error(error);
     if (error.code === 'P2002') {
