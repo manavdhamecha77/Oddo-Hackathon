@@ -12,7 +12,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, task = null, projectId, i
     description: '',
     status: initialStatus,
     priority: 'medium',
-    assignedTo: '',
+    assignedUserIds: [],
     dueDate: '',
     estimatedHours: '',
     blockerReason: ''
@@ -30,12 +30,13 @@ export function TaskModal({ isOpen, onClose, onSubmit, task = null, projectId, i
 
   useEffect(() => {
     if (task) {
+      const assignedIds = task.assignees ? task.assignees.map(a => a.user.id) : [];
       setFormData({
         title: task.title || '',
         description: task.description || '',
         status: task.status || 'new',
         priority: task.priority || 'medium',
-        assignedTo: task.assignedTo || '',
+        assignedUserIds: assignedIds,
         dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
         estimatedHours: task.estimatedHours || '',
         blockerReason: task.blockerReason || ''
@@ -46,7 +47,7 @@ export function TaskModal({ isOpen, onClose, onSubmit, task = null, projectId, i
         description: '',
         status: initialStatus,
         priority: 'medium',
-        assignedTo: '',
+        assignedUserIds: [],
         dueDate: '',
         estimatedHours: '',
         blockerReason: ''
@@ -66,12 +67,21 @@ export function TaskModal({ isOpen, onClose, onSubmit, task = null, projectId, i
       description: '',
       status: 'new',
       priority: 'medium',
-      assignedTo: '',
+      assignedUserIds: [],
       dueDate: '',
       estimatedHours: '',
       blockerReason: ''
     });
     onClose();
+  };
+
+  const toggleAssignee = (userId) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedUserIds: prev.assignedUserIds.includes(userId)
+        ? prev.assignedUserIds.filter(id => id !== userId)
+        : [...prev.assignedUserIds, userId]
+    }));
   };
 
   if (!isOpen) return null;
@@ -118,20 +128,26 @@ export function TaskModal({ isOpen, onClose, onSubmit, task = null, projectId, i
           </div>
 
           <div>
-            <Label htmlFor="assignedTo">Assign To</Label>
-            <select
-              id="assignedTo"
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md bg-background"
-            >
-              <option value="">Unassigned</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor="assignedTo">Assign To (Multiple)</Label>
+            <div className="border rounded-md bg-background p-2 max-h-40 overflow-y-auto space-y-1">
+              {users.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">No team members available</p>
+              ) : (
+                users.map((user) => (
+                  <label key={user.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedUserIds.includes(user.id)}
+                      onChange={() => toggleAssignee(user.id)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">
+                      {user.firstName} {user.lastName}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

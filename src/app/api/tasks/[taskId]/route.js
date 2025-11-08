@@ -13,8 +13,12 @@ export async function GET(req, { params }) {
     const task = await prisma.task.findUnique({
       where: { id: parseInt(taskId) },
       include: {
-        assignedUser: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true }
+            }
+          }
         },
         project: {
           select: { id: true, name: true }
@@ -48,17 +52,39 @@ export async function PUT(req, { params }) {
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.priority !== undefined) updateData.priority = data.priority;
-    if (data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo ? parseInt(data.assignedTo) : null;
     if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     if (data.estimatedHours !== undefined) updateData.estimatedHours = data.estimatedHours;
     if (data.blockerReason !== undefined) updateData.blockerReason = data.blockerReason;
+
+    // Handle assignees separately if provided
+    if (data.assignedUserIds !== undefined) {
+      // Delete existing assignments
+      await prisma.taskAssignment.deleteMany({
+        where: { taskId: parseInt(taskId) }
+      });
+      
+      // Create new assignments
+      if (data.assignedUserIds && data.assignedUserIds.length > 0) {
+        await prisma.taskAssignment.createMany({
+          data: data.assignedUserIds.map(userId => ({
+            taskId: parseInt(taskId),
+            userId: parseInt(userId),
+            assignedBy: user.id
+          }))
+        });
+      }
+    }
 
     const task = await prisma.task.update({
       where: { id: parseInt(taskId) },
       data: updateData,
       include: {
-        assignedUser: {
-          select: { id: true, firstName: true, lastName: true, email: true }
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, email: true }
+            }
+          }
         }
       }
     });

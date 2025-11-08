@@ -7,7 +7,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    assignedTo: '',
+    assignedUserIds: [],
     status: 'new',
     priority: 'medium',
     dueDate: '',
@@ -35,7 +35,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
       projectId: parseInt(projectId),
       title: formData.title.trim(),
       description: formData.description?.trim() || null,
-      assignedTo: formData.assignedTo ? parseInt(formData.assignedTo) : null,
+      assignedUserIds: formData.assignedUserIds,
       status: formData.status,
       priority: formData.priority,
       dueDate: formData.dueDate || null,
@@ -45,7 +45,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
     console.log('ProjectId:', projectId, 'Payload:', payload)
 
     try {
-      const res = await fetch('/api/tasks/create', {
+      const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -71,7 +71,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
     setFormData({
       title: '',
       description: '',
-      assignedTo: '',
+      assignedUserIds: [],
       status: 'new',
       priority: 'medium',
       dueDate: '',
@@ -79,6 +79,15 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
     })
     setError('')
     onClose()
+  }
+
+  const toggleAssignee = (userId) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedUserIds: prev.assignedUserIds.includes(userId)
+        ? prev.assignedUserIds.filter(id => id !== userId)
+        : [...prev.assignedUserIds, userId]
+    }))
   }
 
   if (!isOpen) return null
@@ -124,22 +133,30 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Assign To</label>
-              <select
-                value={formData.assignedTo}
-                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg bg-background"
-              >
-                <option value="">Unassigned</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <label className="block text-sm font-medium mb-2">Assign To (Multiple)</label>
+            <div className="border rounded-lg bg-background p-2 max-h-40 overflow-y-auto space-y-1">
+              {users.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">No team members available</p>
+              ) : (
+                users.map((user) => (
+                  <label key={user.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedUserIds.includes(user.id)}
+                      onChange={() => toggleAssignee(user.id)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">
+                      {user.firstName} {user.lastName}
+                    </span>
+                  </label>
+                ))
+              )}
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
 
             <div>
               <label className="block text-sm font-medium mb-2">Status</label>
