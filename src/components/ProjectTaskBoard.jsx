@@ -1,0 +1,398 @@
+'use client'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical, Edit, Trash2 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import LinksPanel from '@/components/links-panel'
+import AddTaskModal from '@/components/AddTaskModal'
+import { TaskModal } from '@/components/task-modal'
+
+export default function ProjectTaskBoard({ projectId, backLink }) {
+  const [userRole, setUserRole] = useState(null)
+  const [isLoadingUser, setIsLoadingUser] = useState(true)
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false)
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [draggedTask, setDraggedTask] = useState(null)
+
+  const [project, setProject] = useState({
+    name: '',
+    description: '',
+    revenue: 0,
+    costs: 0,
+    profit: 0,
+    progress: 0,
+  })
+
+  const [tasks, setTasks] = useState({
+    todo: [],
+    inProgress: [],
+    review: [],
+    done: [],
+  })
+
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true)
+
+  useEffect(() => {
+    fetchUserRole()
+    fetchTasks()
+    fetchProjectMembers()
+  }, [projectId])
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const userData = await response.json()
+        setUserRole(userData.role)
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+    } finally {
+      setIsLoadingUser(false)
+    }
+  }
+
+  const fetchTasks = async () => {
+    try {
+      setIsLoadingTasks(true)
+      const response = await fetch(`/api/projects/${projectId}/tasks`)
+      if (response.ok) {
+        const tasksData = await response.json()
+        
+        // Group tasks by status
+        const groupedTasks = {
+          todo: tasksData.filter(t => t.status === 'new'),
+          inProgress: tasksData.filter(t => t.status === 'in_progress'),
+          review: tasksData.filter(t => t.status === 'blocked'),
+          done: tasksData.filter(t => t.status === 'done'),
+        }
+        
+        setTasks(groupedTasks)
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+    } finally {
+      setIsLoadingTasks(false)
+    }
+  }
+
+  const fetchProjectMembers = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`)
+      if (response.ok) {
+        const membersData = await response.json()
+      }
+    } catch (error) {
+      console.error('Error fetching project members:', error)
+    }
+  }
+
+  const handleTaskCreated = (newTask) => {
+    fetchTasks()
+  }
+
+  const handleEditTask = (task) => {
+    setSelectedTask(task)
+    setShowEditTaskModal(true)
+  }
+
+  const handleUpdateTask = async (formData) => {
+    if (!selectedTask) return
+
+    try {
+      const response = await fetch(`/api/tasks/${selectedTask.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        fetchTasks()
+        setShowEditTaskModal(false)
+        setSelectedTask(null)
+      }
+    } catch (error) {
+      console.error('Error updating task:', error)
+    }
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    if (!confirm('Are you sure you want to delete this task?')) return
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        fetchTasks()
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+    }
+  }
+
+  const handleDragStart = (e, task) => {
+    setDraggedTask(task)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault()
+    
+    if (!draggedTask || draggedTask.status === newStatus) {
+      setDraggedTask(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/tasks/${draggedTask.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        fetchTasks()
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error)
+    } finally {
+      setDraggedTask(null)
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
+  }
+
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'high': 
+      case 'urgent': 
+        return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+      case 'medium': 
+        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+      case 'low': 
+        return 'text-green-600 bg-green-50 dark:bg-green-900/20'
+      default: 
+        return 'text-gray-600 bg-gray-50'
+    }
+  }
+
+  const TaskCard = ({ task }) => (
+    <div 
+      key={task.id} 
+      draggable
+      onDragStart={(e) => handleDragStart(e, task)}
+      onDragEnd={handleDragEnd}
+      className="bg-background border rounded-lg p-4 hover:shadow-md transition-shadow cursor-move"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <h4 className="font-medium text-sm">{task.title}</h4>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 hover:bg-muted rounded">
+              <MoreVertical className="w-3 h-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleEditTask(task)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => handleDeleteTask(task.id)}
+              variant="destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {task.assignedUser && (
+        <p className="text-xs text-muted-foreground mb-2">
+          {task.assignedUser.firstName} {task.assignedUser.lastName}
+        </p>
+      )}
+      <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
+        {task.priority}
+      </span>
+    </div>
+  )
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <Button variant="ghost" size="sm" className="mb-4" asChild>
+          <Link href={backLink}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Projects
+          </Link>
+        </Button>
+        
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+            <p className="text-sm text-muted-foreground max-w-2xl">{project.description}</p>
+          </div>
+          <Button onClick={() => setShowAddTaskModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
+      </div>
+
+      {/* Financial Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-card border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Revenue</span>
+            <DollarSign className="w-4 h-4 text-green-500" />
+          </div>
+          <p className="text-2xl font-bold">${project.revenue || 0}</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Costs</span>
+            <TrendingUp className="w-4 h-4 text-red-500" />
+          </div>
+          <p className="text-2xl font-bold">${project.costs || 0}</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Profit</span>
+            <TrendingUp className="w-4 h-4 text-blue-500" />
+          </div>
+          <p className="text-2xl font-bold text-green-600">${project.profit || 0}</p>
+        </div>
+        <div className="bg-card border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Progress</span>
+            <Clock className="w-4 h-4 text-purple-500" />
+          </div>
+          <p className="text-2xl font-bold">{project.progress || 0}%</p>
+        </div>
+      </div>
+
+      {/* Links Panel with Billing Engine */}
+      {isLoadingUser ? (
+        <div className="mb-8 bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <LinksPanel projectId={projectId} userRole={userRole} />
+        </div>
+      )}
+
+      {/* Kanban Board */}
+      <div className="bg-card border rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-6">Task Board</h2>
+        {isLoadingTasks ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* To Do Column */}
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'new')}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">To Do</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
+            </div>
+            <div className="space-y-3 min-h-[200px]">
+              {tasks.todo.map(task => <TaskCard key={task.id} task={task} />)}
+            </div>
+          </div>
+
+          {/* In Progress Column */}
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'in_progress')}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">In Progress</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
+            </div>
+            <div className="space-y-3 min-h-[200px]">
+              {tasks.inProgress.map(task => <TaskCard key={task.id} task={task} />)}
+            </div>
+          </div>
+
+          {/* Review Column */}
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'blocked')}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Review</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
+            </div>
+            <div className="space-y-3 min-h-[200px]">
+              {tasks.review.map(task => <TaskCard key={task.id} task={task} />)}
+            </div>
+          </div>
+
+          {/* Done Column */}
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'done')}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-sm">Done</h3>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
+            </div>
+            <div className="space-y-3 min-h-[200px]">
+              {tasks.done.map(task => <TaskCard key={task.id} task={task} />)}
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={showAddTaskModal}
+        onClose={() => setShowAddTaskModal(false)}
+        projectId={projectId}
+        onTaskCreated={handleTaskCreated}
+      />
+
+      {/* Edit Task Modal */}
+      <TaskModal
+        isOpen={showEditTaskModal}
+        onClose={() => {
+          setShowEditTaskModal(false)
+          setSelectedTask(null)
+        }}
+        onSubmit={handleUpdateTask}
+        task={selectedTask}
+        projectId={projectId}
+      />
+    </div>
+  )
+}
