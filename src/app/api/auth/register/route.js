@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
+import { generateUniqueCompanyId } from "@/lib/companyId";
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const prisma = new PrismaClient();
@@ -31,9 +32,13 @@ export async function POST(req) {
     const [firstName, ...rest] = (name || "").trim().split(" ");
     const lastName = rest.join(" ") || null;
 
+    // Generate unique company ID
+    const uniqueCompanyId = await generateUniqueCompanyId(prisma);
+
     // Create company first with the provided name or default to user's name + "Company"
     const company = await prisma.company.create({
       data: {
+        companyId: uniqueCompanyId,
         name: companyName || `${firstName || "User"}'s Company`,
       },
     });

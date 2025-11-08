@@ -77,7 +77,10 @@ export default function AdminPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setMessage("User created successfully!");
+        const msg = data.emailSent 
+          ? "User created and credentials sent to their email!" 
+          : "User created! (Email failed - please share credentials manually)";
+        setMessage(msg);
         setCreatedUser(data.user);
         setInviteForm({ email: "", roleId: "" });
         fetchInvitations();
@@ -245,7 +248,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="text-xs text-blue-700 mt-2">
-                ⚠️ Make sure to securely share these credentials with the user. They will need all three to log in.
+                📧 Credentials have been sent to the user's email. You can also share them manually using the copy buttons above.
               </div>
             </div>
           </div>

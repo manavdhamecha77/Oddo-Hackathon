@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/roleGuard";
 import { NextResponse } from "next/server";
 import { generateRandomPassword } from "@/lib/password";
+import { sendWelcomeEmail } from "@/lib/mailer";
 import bcrypt from "bcrypt";
 
 export async function POST(req) {
@@ -76,18 +77,28 @@ export async function POST(req) {
       return { newUser, invitation };
     });
 
-    // In a real app, send email with credentials here
-    // await sendEmail(email, { companyId, email, password: randomPassword });
+    // Send welcome email with credentials
+    const emailResult = await sendWelcomeEmail({
+      to: result.newUser.email,
+      companyId: result.newUser.company.companyId,
+      companyName: result.newUser.company.name,
+      email: result.newUser.email,
+      password: randomPassword,
+      role: result.newUser.role.name,
+    });
 
     return NextResponse.json({
-      message: "User created successfully",
+      message: emailResult.success 
+        ? "User created and credentials sent via email" 
+        : "User created (email sending failed)",
+      emailSent: emailResult.success,
       user: {
         id: result.newUser.id,
         email: result.newUser.email,
         role: result.newUser.role.name,
         companyId: result.newUser.company.companyId,
         companyName: result.newUser.company.name,
-        password: randomPassword, // Send password to admin to share with user
+        password: randomPassword, // Still send to admin as backup
       },
     });
   } catch (error) {
