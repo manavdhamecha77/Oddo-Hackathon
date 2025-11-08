@@ -19,6 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@tailark": "https://tailark.com/r/{name}.json"
+    "@OneFlow": "https://OneFlow.com/r/{name}.json"
   }
 }

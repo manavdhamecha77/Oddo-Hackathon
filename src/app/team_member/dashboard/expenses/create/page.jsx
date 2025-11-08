@@ -87,7 +87,8 @@ export default function CreateExpensePage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 flex items-center justify-center min-h-screen">
+      <div className="w-full max-w-2xl">
       <div className="mb-8">
         <Button variant="ghost" size="sm" className="mb-4" asChild>
           <Link href="/dashboard/expenses">
@@ -99,7 +100,7 @@ export default function CreateExpensePage() {
         <p className="text-muted-foreground">Create a new expense record</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="">
         <div className="bg-card border rounded-xl p-6 space-y-6">
           <div>
             <label htmlFor="projectId" className="block text-sm font-medium mb-2">
@@ -246,6 +247,7 @@ export default function CreateExpensePage() {
           </Button>
         </div>
       </form>
+      </div>
     </div>
   )
 }

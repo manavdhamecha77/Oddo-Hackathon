@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, TrendingUp, DollarSign, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { TrendingUp, DollarSign, Clock, AlertCircle, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
@@ -119,12 +119,6 @@ export default function TeamMemberDashboard() {
         {projects.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
             <p className="text-muted-foreground mb-4">No projects yet</p>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/project_manager/dashboard/projects/create">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Project
-              </Link>
-            </Button>
           </div>
         ) : (
           <div className="divide-y">

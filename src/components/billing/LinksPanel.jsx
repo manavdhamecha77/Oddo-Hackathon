@@ -12,10 +12,14 @@ export default function LinksPanel({ projectId, userRole }) {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false)
 
   useEffect(() => {
-    fetchFinancialStats()
+    if (projectId) {
+      fetchFinancialStats()
+    }
   }, [projectId])
 
   const fetchFinancialStats = async () => {
+    if (!projectId) return
+    
     try {
       setIsLoading(true)
       const [salesOrders, purchaseOrders, invoices, vendorBills] = await Promise.all([

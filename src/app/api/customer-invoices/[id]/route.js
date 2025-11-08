@@ -8,7 +8,7 @@ export async function GET(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id } = params;
+    const { id } = await params;
     const invoice = await prisma.customerInvoice.findUnique({
       where: { id: parseInt(id) },
       include: {
@@ -45,7 +45,7 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const { invoiceNumber, customerName, invoiceDate, dueDate, totalAmount, status } = await req.json();
 
     const updatedInvoice = await prisma.customerInvoice.update({
@@ -88,7 +88,7 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: "Forbidden - Admin only" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     await prisma.customerInvoice.delete({
       where: { id: parseInt(id) }
     });

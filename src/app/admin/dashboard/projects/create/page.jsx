@@ -61,7 +61,8 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 flex items-center justify-center min-h-screen">
+      <div className="w-full max-w-3xl">
       {/* Header */}
       <div className="mb-8">
         <Button variant="ghost" size="sm" className="mb-4" asChild>
@@ -75,7 +76,7 @@ export default function CreateProjectPage() {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl">
+      <form onSubmit={handleSubmit(onSubmit)} className="">
         <div className="bg-card border rounded-xl p-6 space-y-6">
           {/* Project Name */}
           <div>
@@ -193,6 +194,7 @@ export default function CreateProjectPage() {
           </Button>
         </div>
       </form>
+      </div>
     </div>
   )
 }
