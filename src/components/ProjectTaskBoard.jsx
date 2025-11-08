@@ -13,6 +13,7 @@ import {
 import LinksPanel from '@/components/links-panel'
 import AddTaskModal from '@/components/AddTaskModal'
 import { TaskModal } from '@/components/task-modal'
+import { useProjectTour } from '@/hooks/useProjectTour'
 
 export default function ProjectTaskBoard({ projectId, backLink }) {
   const [userRole, setUserRole] = useState(null)
@@ -49,27 +50,50 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
   const [isLoadingTasks, setIsLoadingTasks] = useState(true)
 
+  // Initialize tour (only for admin users)
+  useProjectTour(
+    project.name || 'Your Project',
+    !isLoadingUser && !isLoadingTasks && userRole === 'admin' && project.name
+  )
+
   // Auto-detect backLink based on user role if not provided
   const getBackLink = () => {
     if (backLink) return backLink
     if (!userRole) return '/dashboard/projects'
-    
+
     const roleLinks = {
       admin: '/admin/dashboard/projects',
       project_manager: '/project_manager/dashboard/projects',
       team_member: '/team_member/dashboard/projects',
       sales_finance: '/sales_finance/dashboard/projects',
     }
-    
+
     return roleLinks[userRole] || '/dashboard/projects'
   }
 
   useEffect(() => {
     fetchUserRole()
+    fetchProjectDetails()
     fetchTasks()
     fetchProjectMembers()
     fetchProjectFinancials()
   }, [projectId])
+
+  const fetchProjectDetails = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`)
+      if (response.ok) {
+        const projectData = await response.json()
+        setProject(prev => ({
+          ...prev,
+          name: projectData.name || '',
+          description: projectData.description || '',
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching project details:', error)
+    }
+  }
 
   const fetchProjectFinancials = async () => {
     try {
@@ -113,7 +137,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       const response = await fetch(`/api/projects/${projectId}/tasks`)
       if (response.ok) {
         const tasksData = await response.json()
-        
+
         // Group tasks by status
         const groupedTasks = {
           todo: tasksData.filter(t => t.status === 'new'),
@@ -121,7 +145,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           review: tasksData.filter(t => t.status === 'blocked'),
           done: tasksData.filter(t => t.status === 'done'),
         }
-        
+
         setAllTasks(groupedTasks)
         filterTasks(groupedTasks, showMyTasksOnly)
       }
@@ -140,16 +164,16 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
     // Filter to show only tasks assigned to current user
     const filtered = {
-      todo: tasksToFilter.todo?.filter(task => 
+      todo: tasksToFilter.todo?.filter(task =>
         task.assignees?.some(a => a.user.id === currentUser.id)
       ) || [],
-      inProgress: tasksToFilter.inProgress?.filter(task => 
+      inProgress: tasksToFilter.inProgress?.filter(task =>
         task.assignees?.some(a => a.user.id === currentUser.id)
       ) || [],
-      review: tasksToFilter.review?.filter(task => 
+      review: tasksToFilter.review?.filter(task =>
         task.assignees?.some(a => a.user.id === currentUser.id)
       ) || [],
-      done: tasksToFilter.done?.filter(task => 
+      done: tasksToFilter.done?.filter(task =>
         task.assignees?.some(a => a.user.id === currentUser.id)
       ) || [],
     }
@@ -228,7 +252,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
   const handleDrop = async (e, newStatus) => {
     e.preventDefault()
-    
+
     if (!draggedTask || draggedTask.status === newStatus) {
       setDraggedTask(null)
       return
@@ -256,15 +280,15 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
   }
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'high': 
-      case 'urgent': 
+    switch (priority) {
+      case 'high':
+      case 'urgent':
         return 'text-red-600 bg-red-50 dark:bg-red-900/20'
-      case 'medium': 
+      case 'medium':
         return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
-      case 'low': 
+      case 'low':
         return 'text-green-600 bg-green-50 dark:bg-green-900/20'
-      default: 
+      default:
         return 'text-gray-600 bg-gray-50'
     }
   }
@@ -274,7 +298,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       const response = await fetch(`/api/tasks/${taskId}/assign`, {
         method: 'POST',
       })
-      
+
       if (response.ok) {
         toast.success('You have been assigned to this task')
         fetchTasks()
@@ -293,7 +317,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       const response = await fetch(`/api/tasks/${taskId}/assign`, {
         method: 'DELETE',
       })
-      
+
       if (response.ok) {
         toast.success('You have been unassigned from this task')
         fetchTasks()
@@ -312,8 +336,8 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
   }
 
   const TaskCard = ({ task }) => (
-    <div 
-      key={task.id} 
+    <div
+      key={task.id}
       draggable
       onDragStart={(e) => handleDragStart(e, task)}
       onDragEnd={handleDragEnd}
@@ -332,7 +356,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => handleDeleteTask(task.id)}
               variant="destructive"
             >
@@ -342,14 +366,14 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
+
       {/* Assignees */}
       {task.assignees && task.assignees.length > 0 ? (
         <div className="mb-2">
           <p className="text-xs text-muted-foreground mb-1">Assigned to:</p>
           <div className="flex flex-wrap gap-1">
             {task.assignees.map((assignment) => (
-              <span 
+              <span
                 key={assignment.user.id}
                 className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded"
               >
@@ -361,12 +385,12 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       ) : (
         <p className="text-xs text-muted-foreground mb-2">Unassigned</p>
       )}
-      
+
       <div className="flex items-center justify-between">
         <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
           {task.priority}
         </span>
-        
+
         {/* Self-assign button for team members */}
         {currentUser && (
           <button
@@ -396,13 +420,13 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <Button variant="ghost" size="sm" className="mb-4" asChild>
+        <Button variant="ghost" size="sm" className="mb-4" asChild data-tour="back-button">
           <Link href={getBackLink()}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
           </Link>
         </Button>
-        
+
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
@@ -410,7 +434,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           </div>
           {/* Only show Add Task button for admin and project_manager roles */}
           {userRole && userRole !== 'sales_finance' && userRole !== 'team_member' && (
-            <Button onClick={() => setShowAddTaskModal(true)}>
+            <Button onClick={() => setShowAddTaskModal(true)} data-tour="add-task-button">
               <Plus className="w-4 h-4 mr-2" />
               Add Task
             </Button>
@@ -420,21 +444,21 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
 
       {/* Financial Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-card border rounded-lg p-4">
+        <div className="bg-card border rounded-lg p-4" data-tour="revenue-card">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Revenue</span>
             <DollarSign className="w-4 h-4 text-blue-500" />
           </div>
           <p className="text-2xl font-bold text-blue-600">${(project.revenue || 0).toLocaleString()}</p>
         </div>
-        <div className="bg-card border rounded-lg p-4">
+        <div className="bg-card border rounded-lg p-4" data-tour="costs-card">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Costs</span>
             <TrendingUp className="w-4 h-4 text-red-500" />
           </div>
           <p className="text-2xl font-bold text-red-600">${(project.costs || 0).toLocaleString()}</p>
         </div>
-        <div className="bg-card border rounded-lg p-4">
+        <div className="bg-card border rounded-lg p-4" data-tour="profit-card">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Profit</span>
             <TrendingUp className="w-4 h-4 text-green-500" />
@@ -443,7 +467,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
             ${(project.profit || 0).toLocaleString()}
           </p>
         </div>
-        <div className="bg-card border rounded-lg p-4">
+        <div className="bg-card border rounded-lg p-4" data-tour="progress-card">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Progress</span>
             <Clock className="w-4 h-4 text-purple-500" />
@@ -460,7 +484,7 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
           </div>
         </div>
       ) : (
-        <div className="mb-8">
+        <div className="mb-8" data-tour="links-panel">
           <LinksPanel projectId={projectId} userRole={userRole} />
         </div>
       )}
@@ -469,26 +493,24 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
       <div className="bg-card border rounded-xl p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Task Board</h2>
-          
+
           {/* Toggle My Tasks / All Tasks */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-tour="task-filter">
             <button
               onClick={() => setShowMyTasksOnly(false)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                !showMyTasksOnly 
-                  ? 'bg-primary text-primary-foreground font-medium' 
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${!showMyTasksOnly
+                  ? 'bg-primary text-primary-foreground font-medium'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
             >
               All Tasks
             </button>
             <button
               onClick={() => setShowMyTasksOnly(true)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                showMyTasksOnly 
-                  ? 'bg-primary text-primary-foreground font-medium' 
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${showMyTasksOnly
+                  ? 'bg-primary text-primary-foreground font-medium'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
             >
               My Tasks
             </button>
@@ -499,67 +521,71 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* To Do Column */}
-          <div 
-            className="space-y-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, 'new')}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">To Do</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* To Do Column */}
+            <div
+              className="space-y-3"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'new')}
+              data-tour="todo-column"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">To Do</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
+              </div>
+              <div className="space-y-3 min-h-[200px]">
+                {tasks.todo.map(task => <TaskCard key={task.id} task={task} />)}
+              </div>
             </div>
-            <div className="space-y-3 min-h-[200px]">
-              {tasks.todo.map(task => <TaskCard key={task.id} task={task} />)}
-            </div>
-          </div>
 
-          {/* In Progress Column */}
-          <div 
-            className="space-y-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, 'in_progress')}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">In Progress</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
+            {/* In Progress Column */}
+            <div
+              className="space-y-3"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'in_progress')}
+              data-tour="inprogress-column"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">In Progress</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
+              </div>
+              <div className="space-y-3 min-h-[200px]">
+                {tasks.inProgress.map(task => <TaskCard key={task.id} task={task} />)}
+              </div>
             </div>
-            <div className="space-y-3 min-h-[200px]">
-              {tasks.inProgress.map(task => <TaskCard key={task.id} task={task} />)}
-            </div>
-          </div>
 
-          {/* Review Column */}
-          <div 
-            className="space-y-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, 'blocked')}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Review</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
+            {/* Review Column */}
+            <div
+              className="space-y-3"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'blocked')}
+              data-tour="review-column"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">Review</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
+              </div>
+              <div className="space-y-3 min-h-[200px]">
+                {tasks.review.map(task => <TaskCard key={task.id} task={task} />)}
+              </div>
             </div>
-            <div className="space-y-3 min-h-[200px]">
-              {tasks.review.map(task => <TaskCard key={task.id} task={task} />)}
-            </div>
-          </div>
 
-          {/* Done Column */}
-          <div 
-            className="space-y-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, 'done')}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-sm">Done</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
-            </div>
-            <div className="space-y-3 min-h-[200px]">
-              {tasks.done.map(task => <TaskCard key={task.id} task={task} />)}
+            {/* Done Column */}
+            <div
+              className="space-y-3"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'done')}
+              data-tour="done-column"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm">Done</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
+              </div>
+              <div className="space-y-3 min-h-[200px]">
+                {tasks.done.map(task => <TaskCard key={task.id} task={task} />)}
+              </div>
             </div>
           </div>
-        </div>
         )}
       </div>
 
