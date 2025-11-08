@@ -23,11 +23,12 @@ export default function RegisterPage() {
       const data = await res.json()
       
       if (res.ok) {
-        setMsg("Registration successful! Redirecting...")
+        const companyId = data.user?.companyId || "Unknown";
+        setMsg(`Registration successful! Your Company ID: ${companyId}. Redirecting...`);
         // Redirect to admin dashboard after successful registration
         setTimeout(() => {
           router.push("/admin")
-        }, 1000)
+        }, 2000)
       } else {
         setMsg(data.error || "Registration failed")
       }

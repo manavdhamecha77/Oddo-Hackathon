@@ -10,7 +10,7 @@ export default function AdminPage() {
   const [inviteForm, setInviteForm] = useState({ email: "", roleId: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showInviteLink, setShowInviteLink] = useState(null);
+  const [createdUser, setCreatedUser] = useState(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -65,7 +65,7 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    setShowInviteLink(null);
+    setCreatedUser(null);
 
     try {
       const res = await fetch("/api/admin/invite", {
@@ -77,12 +77,12 @@ export default function AdminPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setMessage("Invitation sent successfully!");
-        setShowInviteLink(data.invitation.inviteLink);
+        setMessage("User created successfully!");
+        setCreatedUser(data.user);
         setInviteForm({ email: "", roleId: "" });
         fetchInvitations();
       } else {
-        setMessage(data.error || "Failed to send invitation");
+        setMessage(data.error || "Failed to create user");
       }
     } catch (error) {
       setMessage("An error occurred");
@@ -91,9 +91,9 @@ export default function AdminPage() {
     }
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
-    alert("Invite link copied to clipboard!");
+    alert(`${label} copied to clipboard!`);
   };
 
   const stats = [
@@ -198,19 +198,55 @@ export default function AdminPage() {
           </div>
         )}
 
-        {showInviteLink && (
+        {createdUser && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-medium mb-2 text-blue-900">Invitation Link:</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={showInviteLink}
-                readOnly
-                className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm"
-              />
-              <Button onClick={() => copyToClipboard(showInviteLink)} variant="outline">
-                Copy Link
-              </Button>
+            <p className="text-sm font-semibold mb-3 text-blue-900">User Credentials (share these with the user):</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-blue-800 font-medium">Company ID</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={createdUser.companyId}
+                    readOnly
+                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm font-mono"
+                  />
+                  <Button onClick={() => copyToClipboard(createdUser.companyId, "Company ID")} variant="outline" size="sm">
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-blue-800 font-medium">Email</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={createdUser.email}
+                    readOnly
+                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm"
+                  />
+                  <Button onClick={() => copyToClipboard(createdUser.email, "Email")} variant="outline" size="sm">
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-blue-800 font-medium">Password (temporary)</label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="text"
+                    value={createdUser.password}
+                    readOnly
+                    className="flex-1 px-3 py-2 border rounded-lg bg-white text-sm font-mono"
+                  />
+                  <Button onClick={() => copyToClipboard(createdUser.password, "Password")} variant="outline" size="sm">
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div className="text-xs text-blue-700 mt-2">
+                ⚠️ Make sure to securely share these credentials with the user. They will need all three to log in.
+              </div>
             </div>
           </div>
         )}

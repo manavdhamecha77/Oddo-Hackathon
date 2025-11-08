@@ -3,7 +3,7 @@ import { useState } from "react"
 import { HeroHeader } from "@/components/header"
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email: "", password: "" })
+  const [form, setForm] = useState({ companyId: "", email: "", password: "" })
   const [msg, setMsg] = useState("")
 
   const handleSubmit = async (e) => {
@@ -28,20 +28,32 @@ export default function LoginPage() {
         <h1 className="text-2xl font-semibold mb-4">Login</h1>
         <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-64" suppressHydrationWarning>
           <input 
+            placeholder="Company ID" 
+            value={form.companyId}
+            onChange={(e) => setForm({ ...form, companyId: e.target.value })}
+            required
+            suppressHydrationWarning
+          />
+          <input 
             placeholder="Email" 
+            type="email"
+            value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
             suppressHydrationWarning
           />
           <input 
             placeholder="Password" 
             type="password" 
+            value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
             suppressHydrationWarning
           />
           <button className="bg-zinc-800 text-white py-2 rounded" suppressHydrationWarning>
             Login
           </button>
-          <p className="text-sm text-gray-500">{msg}</p>
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
         </form>
       </div>
     </>
