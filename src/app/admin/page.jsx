@@ -248,7 +248,7 @@ export default function AdminPage() {
                 </div>
               </div>
               <div className="text-xs text-blue-700 mt-2">
-                📧 Credentials have been sent to the user's email. You can also share them manually using the copy buttons above.
+                📧 Credentials have been sent to the user&apos;s email. You can also share them manually using the copy buttons above.
               </div>
             </div>
           </div>

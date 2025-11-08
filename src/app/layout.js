@@ -1,3 +1,5 @@
+'use client';
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -12,10 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "OneFlow - Project Management & Financial Tracking",
-  description: "Know your project profit in real-time. OneFlow merges project execution with financial tracking for complete visibility.",
-};
 
 export default function RootLayout({ children }) {
   return (
