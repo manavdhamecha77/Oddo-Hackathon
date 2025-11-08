@@ -14,13 +14,28 @@ datasource db {
 // USERS & AUTHENTICATION
 // ============================================
 
+model Company {
+  id          Int      @id @default(autoincrement())
+  companyId   String   @unique @default(cuid()) @map("company_id") @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users       User[]
+  invitations Invitation[]
+
+  @@map("companies")
+}
+
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique @db.VarChar(50)
   description String? @db.VarChar(255)
   
   // Relations
-  users User[]
+  users       User[]
+  invitations Invitation[]
 
   @@map("roles")
 }
@@ -31,6 +46,8 @@ model User {
   passwordHash String   @map("password_hash")
   firstName    String?  @map("first_name") @db.VarChar(100)
   lastName     String?  @map("last_name") @db.VarChar(100)
+  companyId    Int      @map("company_id")
+  company      Company  @relation(fields: [companyId], references: [id])
   roleId       Int      @map("role_id")
   role         Role     @relation(fields: [roleId], references: [id])
   hourlyRate   Decimal  @default(0.00) @map("hourly_rate") @db.Decimal(10, 2)
@@ -56,6 +73,33 @@ model User {
   @@map("users")
 }
 
+model Invitation {
+  id         Int              @id @default(autoincrement())
+  email      String           @db.VarChar(255)
+  token      String           @unique @default(cuid()) @db.VarChar(100)
+  companyId  Int              @map("company_id")
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId     Int              @map("role_id")
+  role       Role             @relation(fields: [roleId], references: [id])
+  status     InvitationStatus @default(pending)
+  invitedBy  Int?             @map("invited_by")
+  expiresAt  DateTime         @map("expires_at")
+  acceptedAt DateTime?        @map("accepted_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([email])
+  @@map("invitations")
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  cancelled
+
+  @@map("invitation_status")
+}
 
 // ============================================
 // PARTNERS (CUSTOMERS & VENDORS)

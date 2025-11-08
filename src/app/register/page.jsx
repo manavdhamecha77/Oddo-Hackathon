@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { HeroHeader } from "@/components/header"
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: "", email: "", password: "" })
+  const [form, setForm] = useState({ name: "", companyName: "", email: "", password: "" })
   const [msg, setMsg] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -48,6 +48,13 @@ export default function RegisterPage() {
             placeholder="Full Name" 
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            suppressHydrationWarning
+          />
+          <input 
+            placeholder="Company Name" 
+            value={form.companyName}
+            onChange={(e) => setForm({ ...form, companyName: e.target.value })}
             required
             suppressHydrationWarning
           />
