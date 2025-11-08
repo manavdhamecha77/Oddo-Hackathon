@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Save, Loader2, Building2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Plus, Trash2, Save, Loader2, Building2, Scan } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,9 +31,11 @@ export default function VendorBillForm({
   onSuccess 
 }) {
   const [loading, setLoading] = useState(false)
+  const [ocrLoading, setOcrLoading] = useState(false)
   const [vendors, setVendors] = useState([])
   const [loadingVendors, setLoadingVendors] = useState(true)
   const [purchaseOrders, setPurchaseOrders] = useState([])
+  const fileInputRef = useRef(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -112,6 +114,55 @@ export default function VendorBillForm({
       ...prev,
       billNumber: `VB-${timestamp}-${randomNum}`
     }))
+  }
+
+  const handleOcrScan = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    setOcrLoading(true)
+    toast.info('Scanning bill... This may take a few seconds')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/ocr/process-bill', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.details || error.error || 'Failed to process bill')
+      }
+
+      const ocrData = await response.json()
+
+      // Update form with OCR data
+      setFormData(prev => ({
+        ...prev,
+        billDate: ocrData.billDate || prev.billDate,
+        lines: ocrData.lines.length > 0 ? ocrData.lines : prev.lines,
+      }))
+
+      toast.success('Bill scanned successfully! Review and adjust the extracted data.')
+    } catch (error) {
+      console.error('Error processing OCR:', error)
+      toast.error(error.message || 'Failed to scan bill')
+    } finally {
+      setOcrLoading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   const calculateTotal = () => {
@@ -241,6 +292,52 @@ export default function VendorBillForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
+          {/* OCR Scan Section */}
+          {!existingBill && (
+            <div className="bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1 flex items-center gap-2">
+                    <Scan className="w-4 h-4" />
+                    Scan Bill with OCR
+                  </h4>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    Upload an image of your bill to automatically extract line items and amounts
+                  </p>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleOcrScan}
+                    className="hidden"
+                    id="ocr-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={ocrLoading}
+                    className="gap-2"
+                  >
+                    {ocrLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Scanning...
+                      </>
+                    ) : (
+                      <>
+                        <Scan className="w-4 h-4" />
+                        Scan Bill
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Information */}
           <Card>
             <CardHeader>
