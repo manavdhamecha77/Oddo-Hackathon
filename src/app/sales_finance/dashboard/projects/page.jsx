@@ -22,7 +22,32 @@ export default function SalesFinanceProjectsPage() {
         throw new Error('Failed to fetch projects')
       }
       const data = await res.json()
-      setProjects(data)
+      
+      // Fetch financial data for each project
+      const projectsWithFinancials = await Promise.all(
+        data.map(async (project) => {
+          try {
+            const financialsRes = await fetch(`/api/projects/${project.id}/financials`, { credentials: 'include' })
+            if (financialsRes.ok) {
+              const financials = await financialsRes.json()
+              return {
+                ...project,
+                revenue: financials.revenue.total || 0,
+                costs: financials.costs.total || 0,
+                profit: financials.profitability.profit || 0,
+                profitMargin: financials.profitability.profitMargin || 0,
+                progress: financials.progress || 0
+              }
+            }
+            return project
+          } catch (err) {
+            console.error(`Error fetching financials for project ${project.id}:`, err)
+            return project
+          }
+        })
+      )
+      
+      setProjects(projectsWithFinancials)
     } catch (error) {
       console.error('Error fetching projects:', error)
       toast.error('Failed to load projects')
@@ -123,8 +148,21 @@ export default function SalesFinanceProjectsPage() {
 
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Budget</p>
-                <p className="text-sm font-semibold">${project.budget?.toLocaleString() || 0}</p>
+                <p className="text-xs text-muted-foreground mb-1">Revenue</p>
+                <p className="text-sm font-semibold text-green-600">${project.revenue?.toLocaleString() || 0}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Costs</p>
+                <p className="text-sm font-semibold text-red-600">${project.costs?.toLocaleString() || 0}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Profit</p>
+                <p className={`text-sm font-semibold ${project.profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  ${project.profit?.toLocaleString() || 0}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Tasks</p>

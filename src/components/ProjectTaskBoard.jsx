@@ -68,7 +68,26 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
     fetchUserRole()
     fetchTasks()
     fetchProjectMembers()
+    fetchProjectFinancials()
   }, [projectId])
+
+  const fetchProjectFinancials = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/financials`)
+      if (response.ok) {
+        const financials = await response.json()
+        setProject(prev => ({
+          ...prev,
+          revenue: financials.revenue?.total || 0,
+          costs: financials.costs?.total || 0,
+          profit: financials.profitability?.profit || 0,
+          progress: financials.progress || 0,
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching project financials:', error)
+    }
+  }
 
   const fetchUserRole = async () => {
     try {
@@ -400,21 +419,23 @@ export default function ProjectTaskBoard({ projectId, backLink }) {
             <span className="text-sm text-muted-foreground">Revenue</span>
             <DollarSign className="w-4 h-4 text-green-500" />
           </div>
-          <p className="text-2xl font-bold">${project.revenue || 0}</p>
+          <p className="text-2xl font-bold text-green-600">${(project.revenue || 0).toLocaleString()}</p>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Costs</span>
             <TrendingUp className="w-4 h-4 text-red-500" />
           </div>
-          <p className="text-2xl font-bold">${project.costs || 0}</p>
+          <p className="text-2xl font-bold text-red-600">${(project.costs || 0).toLocaleString()}</p>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Profit</span>
             <TrendingUp className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-bold text-green-600">${project.profit || 0}</p>
+          <p className={`text-2xl font-bold ${project.profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+            ${(project.profit || 0).toLocaleString()}
+          </p>
         </div>
         <div className="bg-card border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
