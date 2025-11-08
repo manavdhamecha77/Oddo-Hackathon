@@ -10,8 +10,8 @@ export async function middleware(req) {
   try {
     const { payload } = await jwtVerify(token, secret);
 
-    // Restrict admin routes
-    if (req.nextUrl.pathname.startsWith("/admin") && payload.role !== "Admin") {
+    // Restrict admin routes (role stored as lowercase in DB/seed)
+    if (req.nextUrl.pathname.startsWith("/admin") && payload.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 

@@ -6,17 +6,25 @@ export default function AdminPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const res = await fetch("/api/auth/me");
-      if (!res.ok) {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (!res.ok) {
+          window.location.href = "/login";
+          return;
+        }
+        const ct = res.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) {
+          window.location.href = "/login";
+          return;
+        }
+        const data = await res.json();
+        if (data.role !== "admin") {
+          window.location.href = "/dashboard";
+        } else {
+          setUser(data);
+        }
+      } catch (e) {
         window.location.href = "/login";
-        return;
-      }
-      const data = await res.json();
-      // Check for "admin" role (lowercase)
-      if (data.role !== "admin") {
-        window.location.href = "/dashboard";
-      } else {
-        setUser(data);
       }
     };
     fetchUser();
@@ -27,7 +35,7 @@ export default function AdminPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-4">Admin Panel</h1>
-      <p>Welcome, {user.name} (Admin)</p>
+      <p>Welcome, {user.name || user.email} (Admin)</p>
     </div>
   );
 }
