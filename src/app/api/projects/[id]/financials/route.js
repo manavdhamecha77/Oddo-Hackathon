@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Calculate Revenue (from Sales Orders)
+    // Calculate Revenue (from Sales Orders and Customer Invoices)
     const revenueData = await prisma.salesOrder.aggregate({
       where: { 
         projectId,
@@ -31,10 +31,19 @@ export async function GET(req, { params }) {
       _count: true
     });
 
-    const totalRevenue = Number(revenueData._sum.totalAmount || 0);
-    const salesOrderCount = revenueData._count;
+    const invoiceData = await prisma.customerInvoice.aggregate({
+      where: { projectId },
+      _sum: { totalAmount: true },
+      _count: true
+    });
 
-    // Calculate Costs (from Expenses and Purchase Orders)
+    const salesOrderRevenue = Number(revenueData._sum.totalAmount || 0);
+    const invoiceRevenue = Number(invoiceData._sum.totalAmount || 0);
+    const totalRevenue = salesOrderRevenue + invoiceRevenue;
+    const salesOrderCount = revenueData._count;
+    const invoiceCount = invoiceData._count;
+
+    // Calculate Costs (from Expenses, Purchase Orders, and Vendor Bills)
     const expenseData = await prisma.expense.aggregate({
       where: { projectId },
       _sum: { amount: true },
@@ -50,19 +59,31 @@ export async function GET(req, { params }) {
       _count: true
     });
 
+    const vendorBillData = await prisma.vendorBill.aggregate({
+      where: { projectId },
+      _sum: { totalAmount: true },
+      _count: true
+    });
+
     const expenseCosts = Number(expenseData._sum.amount || 0);
     const poCosts = Number(purchaseOrderData._sum.totalAmount || 0);
-    const totalCosts = expenseCosts + poCosts;
+    const vendorBillCosts = Number(vendorBillData._sum.totalAmount || 0);
+    const totalCosts = expenseCosts + poCosts + vendorBillCosts;
     const expenseCount = expenseData._count;
     const poCount = purchaseOrderData._count;
+    const vendorBillCount = vendorBillData._count;
 
     console.log(`[Financials API] Project ${projectId}:`, {
       totalRevenue,
+      salesOrderRevenue,
+      invoiceRevenue,
       expenseCosts,
       poCosts,
+      vendorBillCosts,
       totalCosts,
       expenseCount,
-      poCount
+      poCount,
+      vendorBillCount
     });
 
     // Profit Calculation
@@ -121,7 +142,14 @@ export async function GET(req, { params }) {
       progress,
       revenue: {
         total: totalRevenue,
-        salesOrderCount
+        salesOrders: {
+          amount: salesOrderRevenue,
+          count: salesOrderCount
+        },
+        invoices: {
+          amount: invoiceRevenue,
+          count: invoiceCount
+        }
       },
       costs: {
         expenses: {
@@ -131,6 +159,10 @@ export async function GET(req, { params }) {
         purchaseOrders: {
           amount: poCosts,
           count: poCount
+        },
+        vendorBills: {
+          amount: vendorBillCosts,
+          count: vendorBillCount
         },
         total: totalCosts
       },

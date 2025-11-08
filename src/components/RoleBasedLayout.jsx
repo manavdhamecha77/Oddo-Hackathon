@@ -29,6 +29,7 @@ const roleNavItems = {
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Analytics', href: '/admin/dashboard/analytics', icon: BarChart3 },
         { name: 'Projects', href: '/admin/dashboard/projects', icon: FolderKanban },
+        { name: 'Documents', href: '/admin/dashboard/documents', icon: FileText },
         { name: 'Timesheets', href: '/admin/dashboard/timesheets', icon: Clock },
         { name: 'Expenses', href: '/admin/dashboard/expenses', icon: Receipt },
         { name: 'Hourly Rates', href: '/admin/dashboard/hourly-rates', icon: DollarSign },
@@ -38,6 +39,7 @@ const roleNavItems = {
         { name: 'Dashboard', href: '/project_manager/dashboard', icon: LayoutDashboard },
         { name: 'Analytics', href: '/project_manager/dashboard/analytics', icon: BarChart3 },
         { name: 'Projects', href: '/project_manager/dashboard/projects', icon: FolderKanban },
+        { name: 'Documents', href: '/project_manager/dashboard/documents', icon: FileText },
         { name: 'Timesheets', href: '/project_manager/dashboard/timesheets', icon: Clock },
     ],
     team_member: [
@@ -50,6 +52,7 @@ const roleNavItems = {
         { name: 'Dashboard', href: '/sales_finance/dashboard', icon: LayoutDashboard },
         { name: 'Analytics', href: '/sales_finance/dashboard/analytics', icon: BarChart3 },
         { name: 'Projects', href: '/sales_finance/dashboard/projects', icon: FolderKanban },
+        { name: 'Documents', href: '/sales_finance/dashboard/documents', icon: FileText },
     ]
 }
 

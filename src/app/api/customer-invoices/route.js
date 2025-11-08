@@ -1,6 +1,7 @@
 import { getUserFromRequest } from "@/lib/roleGuard";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { sendRealtimeUpdate } from "@/app/api/events/route";
 
 // GET all customer invoices
 export async function GET(req) {
@@ -121,6 +122,16 @@ export async function POST(req) {
         lines: true
       }
     });
+
+    // Broadcast real-time update
+    sendRealtimeUpdate(user.companyId, 'invoice_created', {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      projectId: invoice.projectId,
+      customer: invoice.customer,
+      totalAmount: invoice.totalAmount,
+      status: invoice.status
+    })
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
