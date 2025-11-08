@@ -8,7 +8,7 @@ export async function POST(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { taskId } = params;
+    const { taskId } = await params;
     const { hours, description, date } = await req.json();
 
     if (!hours || hours <= 0) {
@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { taskId } = params;
+    const { taskId } = await params;
 
     const timesheets = await prisma.timesheet.findMany({
       where: { taskId: parseInt(taskId) },

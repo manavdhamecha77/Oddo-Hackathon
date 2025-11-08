@@ -1,17 +1,56 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import { use, useEffect, useState } from 'react'
+import { ProjectKanbanPage } from '@/components/project-kanban-page'
 import Link from 'next/link'
-import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import LinksPanel from '@/components/billing/LinksPanel'
+import { ArrowLeft, Plus, DollarSign, TrendingUp, Clock, Loader2, MoreVertical, Edit, Trash2 } from 'lucide-react'
+import LinksPanel from '@/components/links-panel'
+import AddTaskModal from '@/components/AddTaskModal'
+import { TaskModal } from '@/components/task-modal'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function ProjectDetailPage({ params }) {
-  const { id } = params
+  const resolvedParams = use(params)
+  const { id } = resolvedParams
+
+  // Local state moved inside the component so hooks are not called at top-level
   const [userRole, setUserRole] = useState(null)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false)
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [users, setUsers] = useState([])
+  const [draggedTask, setDraggedTask] = useState(null)
+
+  // Minimal placeholder data to avoid rendering errors; replace with real data loading as needed
+  const [project, setProject] = useState({
+    name: '',
+    client: '',
+    description: '',
+    revenue: 0,
+    costs: 0,
+    profit: 0,
+    progress: 0,
+  })
+
+  const [tasks, setTasks] = useState({
+    todo: [],
+    inProgress: [],
+    review: [],
+    done: [],
+  })
+
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true)
 
   useEffect(() => {
     fetchUserRole()
+    fetchTasks()
+    fetchProjectMembers()
   }, [])
 
   const fetchUserRole = async () => {
@@ -28,37 +67,126 @@ export default function ProjectDetailPage({ params }) {
     }
   }
 
-  // Mock data
-  const project = {
-    id,
-    name: 'Website Redesign',
-    client: 'TechCorp',
-    description: 'Complete redesign of the company website with modern UI/UX',
-    status: 'In Progress',
-    progress: 65,
-    startDate: '2025-01-15',
-    dueDate: '2025-03-30',
-    revenue: '$45,000',
-    costs: '$32,550',
-    profit: '$12,450'
+  const fetchTasks = async () => {
+    try {
+      setIsLoadingTasks(true)
+      const response = await fetch(`/api/projects/${id}/tasks`)
+      if (response.ok) {
+        const tasksData = await response.json()
+        
+        // Group tasks by status
+        const groupedTasks = {
+          todo: tasksData.filter(t => t.status === 'new'),
+          inProgress: tasksData.filter(t => t.status === 'in_progress'),
+          review: tasksData.filter(t => t.status === 'blocked'),
+          done: tasksData.filter(t => t.status === 'done'),
+        }
+        
+        setTasks(groupedTasks)
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+    } finally {
+      setIsLoadingTasks(false)
+    }
   }
 
-  const tasks = {
-    todo: [
-      { id: 1, title: 'Create wireframes', assignee: 'John Doe', priority: 'High' },
-      { id: 2, title: 'Setup development environment', assignee: 'Jane Smith', priority: 'Medium' },
-    ],
-    inProgress: [
-      { id: 3, title: 'Design homepage', assignee: 'John Doe', priority: 'High' },
-      { id: 4, title: 'Implement authentication', assignee: 'Mike Johnson', priority: 'High' },
-    ],
-    review: [
-      { id: 5, title: 'Complete database schema', assignee: 'Sarah Williams', priority: 'Medium' },
-    ],
-    done: [
-      { id: 6, title: 'Project kickoff meeting', assignee: 'John Doe', priority: 'High' },
-      { id: 7, title: 'Requirements gathering', assignee: 'Jane Smith', priority: 'High' },
-    ]
+
+  const fetchProjectMembers = async () => {
+    try {
+      const response = await fetch(`/api/projects/${id}/members`)
+      if (response.ok) {
+        const membersData = await response.json()
+        setUsers(membersData)
+      }
+    } catch (error) {
+      console.error('Error fetching project members:', error)
+    }
+  }
+
+  const handleTaskCreated = (newTask) => {
+    // Refresh tasks after creation
+    fetchTasks()
+  }
+
+  const handleEditTask = (task) => {
+    setSelectedTask(task)
+    setShowEditTaskModal(true)
+  }
+
+  const handleUpdateTask = async (formData) => {
+    if (!selectedTask) return
+
+    try {
+      const response = await fetch(`/api/tasks/${selectedTask.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        fetchTasks()
+        setShowEditTaskModal(false)
+        setSelectedTask(null)
+      }
+    } catch (error) {
+      console.error('Error updating task:', error)
+    }
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    if (!confirm('Are you sure you want to delete this task?')) return
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        fetchTasks()
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+    }
+  }
+
+  const handleDragStart = (e, task) => {
+    setDraggedTask(task)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = async (e, newStatus) => {
+    e.preventDefault()
+    
+    if (!draggedTask || draggedTask.status === newStatus) {
+      setDraggedTask(null)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/tasks/${draggedTask.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        fetchTasks()
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error)
+    } finally {
+      setDraggedTask(null)
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
   }
 
   const getPriorityColor = (priority) => {
@@ -87,7 +215,7 @@ export default function ProjectDetailPage({ params }) {
             <p className="text-muted-foreground mb-4">{project.client}</p>
             <p className="text-sm text-muted-foreground max-w-2xl">{project.description}</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowAddTaskModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Task
           </Button>
@@ -142,23 +270,59 @@ export default function ProjectDetailPage({ params }) {
       {/* Kanban Board */}
       <div className="bg-card border rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-6">Task Board</h2>
+        {isLoadingTasks ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* To Do Column */}
-          <div className="space-y-3">
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'new')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">To Do</h3>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.todo.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 min-h-[200px]">
               {tasks.todo.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
+                <div 
+                  key={task.id} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragEnd={handleDragEnd}
+                  className="bg-background border rounded-lg p-4 hover:shadow-md transition-shadow cursor-move"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded">
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteTask(task.id)}
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
+                  {task.assignedUser && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {task.assignedUser.firstName} {task.assignedUser.lastName}
+                    </p>
+                  )}
                   <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
@@ -168,21 +332,52 @@ export default function ProjectDetailPage({ params }) {
           </div>
 
           {/* In Progress Column */}
-          <div className="space-y-3">
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'in_progress')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">In Progress</h3>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.inProgress.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 min-h-[200px]">
               {tasks.inProgress.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
+                <div 
+                  key={task.id} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragEnd={handleDragEnd}
+                  className="bg-background border rounded-lg p-4 hover:shadow-md transition-shadow cursor-move"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded">
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteTask(task.id)}
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
+                  {task.assignedUser && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {task.assignedUser.firstName} {task.assignedUser.lastName}
+                    </p>
+                  )}
                   <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
@@ -192,21 +387,52 @@ export default function ProjectDetailPage({ params }) {
           </div>
 
           {/* Review Column */}
-          <div className="space-y-3">
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'blocked')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">Review</h3>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.review.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 min-h-[200px]">
               {tasks.review.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow">
+                <div 
+                  key={task.id} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragEnd={handleDragEnd}
+                  className="bg-background border rounded-lg p-4 hover:shadow-md transition-shadow cursor-move"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded">
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteTask(task.id)}
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
+                  {task.assignedUser && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {task.assignedUser.firstName} {task.assignedUser.lastName}
+                    </p>
+                  )}
                   <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
@@ -216,21 +442,52 @@ export default function ProjectDetailPage({ params }) {
           </div>
 
           {/* Done Column */}
-          <div className="space-y-3">
+          <div 
+            className="space-y-3"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, 'done')}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">Done</h3>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">{tasks.done.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 min-h-[200px]">
               {tasks.done.map(task => (
-                <div key={task.id} className="bg-background border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow opacity-75">
+                <div 
+                  key={task.id} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
+                  onDragEnd={handleDragEnd}
+                  className="bg-background border rounded-lg p-4 hover:shadow-md transition-shadow opacity-75 cursor-move"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-sm">{task.title}</h4>
-                    <button className="p-1 hover:bg-muted rounded">
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded">
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditTask(task)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteTask(task.id)}
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{task.assignee}</p>
+                  {task.assignedUser && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {task.assignedUser.firstName} {task.assignedUser.lastName}
+                    </p>
+                  )}
                   <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
@@ -239,7 +496,28 @@ export default function ProjectDetailPage({ params }) {
             </div>
           </div>
         </div>
+        )}
       </div>
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={showAddTaskModal}
+        onClose={() => setShowAddTaskModal(false)}
+        projectId={id}
+        onTaskCreated={handleTaskCreated}
+      />
+
+      {/* Edit Task Modal */}
+      <TaskModal
+        isOpen={showEditTaskModal}
+        onClose={() => {
+          setShowEditTaskModal(false)
+          setSelectedTask(null)
+        }}
+        onSubmit={handleUpdateTask}
+        task={selectedTask}
+        projectId={id}
+      />
     </div>
-  )
-}
+    )
+  }
