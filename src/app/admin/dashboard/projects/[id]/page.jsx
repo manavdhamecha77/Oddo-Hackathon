@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, Plus, MoreVertical, Clock, Receipt, FileText, DollarSign, TrendingUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import LinksPanel from '@/components/billing/LinksPanel'
+import ProjectMembersPanel from '@/components/project/ProjectMembersPanel'
 
 export default function ProjectDetailPage({ params }) {
   const { id } = params
@@ -125,6 +126,19 @@ export default function ProjectDetailPage({ params }) {
           <p className="text-2xl font-bold">{project.progress}%</p>
         </div>
       </div>
+
+      {/* Project Team Members */}
+      {isLoadingUser ? (
+        <div className="mb-8 bg-card border rounded-xl p-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <ProjectMembersPanel projectId={id} userRole={userRole} />
+        </div>
+      )}
 
       {/* Links Panel with Billing Engine */}
       {isLoadingUser ? (
