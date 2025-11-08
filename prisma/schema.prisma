@@ -16,7 +16,7 @@ datasource db {
 
 model Company {
   id          Int      @id @default(autoincrement())
-  companyId   String   @unique @default(cuid()) @map("company_id") @db.VarChar(50)
+  companyId   String   @unique @map("company_id") @db.VarChar(50)
   name        String   @db.VarChar(255)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

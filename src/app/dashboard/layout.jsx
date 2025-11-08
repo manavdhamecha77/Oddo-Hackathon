@@ -1,90 +1,35 @@
 'use client'
-import React from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { 
-    LayoutDashboard, 
-    FolderKanban, 
-    Clock, 
-    Receipt, 
-    FileText, 
-    ShoppingCart, 
-    CreditCard, 
-    DollarSign,
-    Settings,
-    LogOut
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import React, { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
-const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban },
-    { name: 'Timesheets', href: '/dashboard/timesheets', icon: Clock },
-    { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
-    { name: 'Sales Orders', href: '/dashboard/sales-orders', icon: ShoppingCart },
-    { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: FileText },
-    { name: 'Invoices', href: '/dashboard/invoices', icon: CreditCard },
-    { name: 'Vendor Bills', href: '/dashboard/vendor-bills', icon: DollarSign },
-]
+export default function DashboardRedirectLayout({ children }) {
+    const router = useRouter()
 
-export default function DashboardLayout({ children }) {
-    const pathname = usePathname()
+    useEffect(() => {
+        const redirect = async () => {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' })
+                if (res.ok) {
+                    const data = await res.json()
+                    const role = data.role || 'team_member'
+                    router.push(`/${role}/dashboard`)
+                } else {
+                    router.push('/login')
+                }
+            } catch (error) {
+                router.push('/login')
+            }
+        }
+        redirect()
+    }, [router])
 
     return (
-        <div className="flex h-screen bg-muted/10">
-            {/* Sidebar */}
-            <aside className="w-64 bg-card border-r flex flex-col">
-                <div className="p-6 border-b">
-                    <Link href="/dashboard" className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                            <span className="text-primary-foreground font-bold">OF</span>
-                        </div>
-                        <span className="font-bold text-lg">OneFlow</span>
-                    </Link>
-                </div>
-
-                <nav className="flex-1 p-4 overflow-y-auto">
-                    <div className="space-y-1">
-                        {navItems.map((item) => {
-                            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                                        isActive
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                                    }`}
-                                >
-                                    <item.icon className="w-5 h-5" />
-                                    <span>{item.name}</span>
-                                </Link>
-                            )
-                        })}
-                    </div>
-                </nav>
-
-                <div className="p-4 border-t space-y-2">
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link href="/dashboard/settings">
-                            <Settings className="w-5 h-5 mr-3" />
-                            Settings
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600" asChild>
-                        <Link href="/api/auth/logout">
-                            <LogOut className="w-5 h-5 mr-3" />
-                            Logout
-                        </Link>
-                    </Button>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto">
-                {children}
-            </main>
+        <div className="flex h-screen items-center justify-center">
+            <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                <p className="text-muted-foreground">Redirecting to your dashboard...</p>
+            </div>
         </div>
     )
 }
