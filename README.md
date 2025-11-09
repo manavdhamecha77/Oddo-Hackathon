@@ -1,36 +1,322 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Oddo Hackathon
 
-## Getting Started
+A modern web application built for the Oddo Hackathon, leveraging a modular, scalable architecture with a strong focus on developer velocity, data integrity, and deployability. The application is deployed on [Vercel](https://oddo-hackathon-pied.vercel.app) and uses a JavaScript + Prisma + Next.js stack.
 
-First, run the development server:
+## Table of Contents
+1. Overview
+2. Live Demo
+3. Core Features
+4. Architecture
+5. Tech Stack
+6. Project Structure
+7. Data & Database Layer
+8. Getting Started
+9. Configuration & Environment
+10. Scripts
+11. Development Workflow
+12. Testing (Suggested)
+13. Deployment
+14. Security Considerations
+15. Performance & Optimization
+16. Accessibility & UX
+17. Logging & Monitoring (Suggested)
+18. Contributing
+19. Roadmap
+20. FAQ
+21. License
+22. Acknowledgements
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 1. Overview
+Oddo Hackathon is designed as a rapid prototype / production-ready foundation for a data-driven web application. It emphasizes:
+- Clean separation of concerns
+- Extensible data modeling (via Prisma)
+- Modern React (likely App Router if Next.js ≥13)
+- Fast iteration with component-driven development
+
+## 2. Live Demo
+Production URL: https://oddo-hackathon-pied.vercel.app  
+(Replace or add staging/previews if configured.)
+
+## 3. Core Features (Adjust to actual functionality)
+- User onboarding & bulk import (via `sample-users.csv`)
+- Role-based or contextual UI components (if implemented)
+- Dynamic server-rendered + client-interactive pages
+- API endpoints (REST or Next.js route handlers)
+- Database persistence using Prisma ORM
+- Responsive and accessible UI components
+
+## 4. Architecture
+The application follows a layered approach:
+
+| Layer | Responsibility |
+|-------|----------------|
+| UI (React / Next.js) | Rendering pages, components, interactions |
+| Application Logic | Validation, orchestration of workflows |
+| Data Access (Prisma) | Database queries, schema, migrations |
+| Scripts | Operational utilities (seeding, maintenance) |
+| Static Assets (`public/`) | Images, icons, static downloads |
+| Configuration | Build, lint, and environment definitions |
+
+## 5. Tech Stack
+- Framework: Next.js
+- Language: JavaScript (ES Modules)
+- Styling: (Assumed) Tailwind CSS or PostCSS pipeline (`postcss.config.mjs`)
+- ORM: Prisma
+- Database: (Assumed) PostgreSQL (adapt if using MySQL/SQLite/etc.)
+- Package Manager: pnpm (`pnpm-lock.yaml`)
+- Build & Linting: Next.js + ESLint (`eslint.config.mjs`)
+- Deployment: Vercel
+- Version Control: Git / GitHub
+
+## 6. Project Structure
+
+```
+.
+├── .gitignore
+├── .vscode/                 # Editor settings (recommend adding workspace linting / formatting)
+├── README.md
+├── components.json          # Likely component registry (e.g. shadcn/ui or custom design system)
+├── eslint.config.mjs
+├── jsconfig.json            # Path aliases / IntelliSense configuration
+├── next.config.mjs          # Next.js runtime/build configuration
+├── package.json
+├── pnpm-lock.yaml
+├── postcss.config.mjs
+├── prisma/                  # Prisma schema & migrations
+├── public/                  # Static assets served as-is
+├── sample-users.csv         # Example dataset for seeding/import
+├── scripts/                 # Automation & operational scripts
+└── src/                     # Application source (pages, components, lib, routes)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Suggested internal `src/` subdivision (adjust to actual):
+```
+src/
+├── app/ or pages/           # Route handlers / Pages
+├── components/              # Reusable UI components
+├── styles/                  # Global styles (if separate)
+├── lib/                     # Helpers, services, utilities
+├── server/                  # Server-side logic / API wrappers
+└── hooks/                   # Custom React hooks
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 7. Data & Database Layer
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prisma
+The `prisma/` directory typically contains:
+- `schema.prisma` – Data model definitions
+- `migrations/` – Auto-generated after running `prisma migrate dev`
 
-## Learn More
+Run:
+```bash
+pnpm prisma migrate dev
+pnpm prisma generate
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Data Import
+The `sample-users.csv` file suggests batch onboarding functionality. Recommended approach:
+1. Parse CSV (e.g. using `papaparse` or `csv-parse`)
+2. Validate rows (email format, uniqueness)
+3. Upsert into database via Prisma in a transaction
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Pseudo-script structure (inside `scripts/`):
+```js
+// scripts/import-users.mjs
+import { PrismaClient } from '@prisma/client';
+import { parse } from 'csv-parse';
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Suggested Schema Snippet (Adjust to real schema)
+```prisma
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+```
 
-## Deploy on Vercel
+## 8. Getting Started
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Prerequisites
+- Node.js ≥ 18.x (align with Next.js requirements)
+- pnpm ≥ 8.x
+- A running database (PostgreSQL recommended)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Installation
+```bash
+git clone https://github.com/manavdhamecha77/Oddo-Hackathon.git
+cd Oddo-Hackathon
+pnpm install
+```
+
+### Database Setup
+1. Create database
+2. Set `DATABASE_URL` in `.env`
+3. Run migrations:
+   ```bash
+   pnpm prisma migrate dev
+   ```
+
+### Development
+```bash
+pnpm dev
+```
+Navigate to `http://localhost:3000`.
+
+## 9. Configuration & Environment
+
+Create a `.env` file:
+```
+DATABASE_URL="postgresql://user:password@host:port/dbname"
+NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+# If using auth/session:
+AUTH_SECRET="your-long-random-secret"
+# If using external APIs:
+EXTERNAL_API_KEY="..."
+```
+
+Never commit secrets. Use Vercel dashboard for production environment variables.
+
+## 10. Scripts
+
+Add (or confirm) helpful entries in `package.json`:
+```jsonc
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate",
+    "import:users": "node scripts/import-users.mjs"
+  }
+}
+```
+
+## 11. Development Workflow
+1. Create feature branch: `feat/<short-description>`
+2. Implement + commit with conventional commits (e.g. `feat: add bulk user import`)
+3. Lint & format before pushing:
+   ```bash
+   pnpm lint
+   ```
+4. Open PR & ensure preview deploy on Vercel
+5. Request review (2 reviewers if critical)
+
+## 12. Testing (Suggested)
+If not yet implemented, recommended setup:
+- Unit: Vitest or Jest
+- Integration: Playwright or Cypress
+- Suggested scripts:
+  ```bash
+  pnpm test
+  pnpm test:watch
+  ```
+Add CI pipeline (GitHub Actions) for automated test + lint + build.
+
+## 13. Deployment
+
+### Vercel
+- Auto-deploys on push to `main`.
+- Preview deployments for PRs.
+- Ensure environment variables configured in Vercel dashboard.
+- `next.config.mjs` can optimize images/domains/performance.
+
+### Database Migrations
+Automate migration on deploy (use a post-deployment hook or manual trigger):
+```bash
+pnpm prisma migrate deploy
+```
+
+## 14. Security Considerations
+- Validate all user input server-side.
+- Escape rendered dynamic content.
+- Use HTTPS everywhere (Vercel default).
+- Rotate secrets periodically.
+- Principle of least privilege on database user.
+
+## 15. Performance & Optimization
+- Leverage Next.js Image Optimization (`next/image`)
+- Code-splitting via dynamic imports
+- Prisma query optimization (indexes on frequently filtered columns)
+- Use caching headers for static assets in `public/`
+- Consider Redis (future) for caching heavy reads
+
+## 16. Accessibility & UX
+- Semantic HTML and ARIA where needed
+- Color contrast compliance (WCAG AA)
+- Keyboard navigability tested
+- Descriptive alt text for images
+
+## 17. Logging & Monitoring (Suggested)
+Potential additions:
+- Structured logging (pino / Winston)
+- Error tracking (Sentry)
+- Performance metrics (Vercel Analytics / OpenTelemetry)
+
+## 18. Contributing
+
+### Guidelines
+- Fork & branch naming: `feat/`, `fix/`, `chore/`
+- Write clear commit messages
+- Keep PRs focused & small
+- Provide tests where applicable
+
+### Code Style
+Enforced via ESLint config (`eslint.config.mjs`). Consider adding Prettier if not already integrated.
+
+## 19. Roadmap (Sample – adjust)
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| Authentication | Add secure auth (NextAuth or custom) | Planned |
+| Role Management | RBAC for admin vs standard users | Planned |
+| Bulk Import UI | Frontend interface for CSV import | In Progress |
+| Metrics Dashboard | Visualize user data trends | Backlog |
+| API Hardening | Rate limiting & input schema validation | Planned |
+
+## 20. FAQ
+**Q: How do I seed sample data?**  
+A: Place or edit `sample-users.csv`, then run the import script (to be implemented under `scripts/`).
+
+**Q: What database is supported?**  
+A: Any Prisma-supported provider (PostgreSQL recommended).
+
+**Q: How are environment variables managed?**  
+A: Local via `.env`, production via Vercel dashboard.
+
+## 21. License
+(Insert appropriate license. If undecided, consider MIT.)
+```
+MIT License © YEAR AUTHOR(S)
+```
+
+## 22. Acknowledgements
+- Hackathon organizers
+- Open-source libraries (Prisma, Next.js, etc.)
+- Contributors & reviewers
+
+---
+
+## Appendix A: Suggested Enhancements
+- Add `docs/` folder for deeper architectural specs
+- Set up automated accessibility audits (axe / Lighthouse CI)
+- Implement spinner/error states for asynchronous UI flows
+
+## Appendix B: Sample CSV Format
+```
+email,name
+jane.doe@example.com,Jane Doe
+john.smith@example.com,John Smith
+```
+
+Ensure validation before import.
+
+---
+
+## Final Notes
+This documentation is a structured template based on observed repository layout. Update sections (Features, Schema, Scripts, Tests) with exact implementation details as the project evolves.
