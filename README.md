@@ -36,6 +36,7 @@ Oddo Hackathon is designed as a rapid prototype / production-ready foundation fo
 - Fast iteration with component-driven development
 
 ## 2. Live Demo
+Google Drive Link (Demo Video): https://drive.google.com/file/d/1llmVyhT2Tzix841EKJA5y-EqIiAJBu7E/view?usp=drive_link
 Production URL: https://oddo-hackathon-pied.vercel.app  
 (Replace or add staging/previews if configured.)
 
