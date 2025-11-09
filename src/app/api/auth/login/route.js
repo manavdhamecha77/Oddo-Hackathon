@@ -54,13 +54,16 @@ export async function POST(req) {
     const res = NextResponse.json({ message: "Login successful", token });
     
     // Set cookie with production-safe settings
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookies.set("token", token, { 
       httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'lax', 
+      secure: isProduction, // HTTPS only in production
+      sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-site cookies in production
       path: "/",
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });
+    
+    console.log('Cookie set:', { isProduction, secure: isProduction, sameSite: isProduction ? 'none' : 'lax' });
     
     return res;
   } catch (error) {

@@ -35,9 +35,7 @@ export default function LoginComponent() {
                 return
             }
 
-            // backend sets cookie; optionally store token in localStorage for client use
-            if (data.token) localStorage.setItem('token', data.token)
-
+            // Cookie is set by backend - no need for localStorage
             // Fetch user role and redirect to role-based dashboard
             const meRes = await fetch('/api/auth/me', { credentials: 'include' })
             if (meRes.ok) {
