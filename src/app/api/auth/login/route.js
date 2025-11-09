@@ -52,7 +52,16 @@ export async function POST(req) {
       .sign(secret);
 
     const res = NextResponse.json({ message: "Login successful", token });
-    res.cookies.set("token", token, { httpOnly: true, sameSite: "lax", path: "/" });
+    
+    // Set cookie with production-safe settings
+    res.cookies.set("token", token, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'lax', 
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+    
     return res;
   } catch (error) {
     console.error('Login error:', error);
