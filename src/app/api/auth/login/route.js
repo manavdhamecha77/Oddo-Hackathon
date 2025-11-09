@@ -56,16 +56,22 @@ export async function POST(req) {
     // Set cookie with production-safe settings
     const isProduction = process.env.NODE_ENV === 'production';
     
-    res.cookies.set("token", token, { 
+    const cookieOptions = { 
       httpOnly: true, 
-      secure: isProduction, // HTTPS only in production
-      sameSite: 'lax', // Changed from 'none' to 'lax' - works better with Vercel
+      secure: isProduction,
+      sameSite: 'lax',
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      // Don't set domain - let browser handle it automatically
-    });
+    };
     
-    console.log('[Login] Cookie set successfully');
+    res.cookies.set("token", token, cookieOptions);
+    
+    console.log('[Login] Cookie set:', {
+      isProduction,
+      cookieOptions,
+      userEmail: user.email,
+      role: user.role?.name
+    });
     
     return res;
   } catch (error) {
