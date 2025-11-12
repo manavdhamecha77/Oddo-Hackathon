@@ -3,13 +3,30 @@ import bcrypt from "bcrypt";
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { generateUniqueCompanyId } from "@/lib/companyId";
+import { verifyOTP } from "@/lib/otp";
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 const prisma = new PrismaClient();
 
 export async function POST(req) {
   try {
-    const { name, email, password, companyName } = await req.json();
+    const { name, email, password, companyName, otp } = await req.json();
+
+    // Verify OTP first
+    if (!otp) {
+      return NextResponse.json(
+        { error: "OTP is required for registration" },
+        { status: 400 }
+      );
+    }
+
+    const otpResult = verifyOTP(email, otp);
+    if (!otpResult.valid) {
+      return NextResponse.json(
+        { error: otpResult.message },
+        { status: 400 }
+      );
+    }
 
     // check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
