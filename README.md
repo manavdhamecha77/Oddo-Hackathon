@@ -1,6 +1,6 @@
 # Oddo Hackathon
 
-A modern web application built for the Oddo Hackathon, leveraging a modular, scalable architecture with a strong focus on developer velocity, data integrity, and deployability. The application is deployed on [Vercel](https://oddo-hackathon-pied.vercel.app) and uses a JavaScript + Prisma + Next.js stack.
+A modern web application built for the Oddo X Amalthea IIT Gandhinagar Hackathon (offline round), leveraging a modular, scalable architecture with a strong focus on developer velocity, data integrity, and deployability. The application is deployed on [Vercel](https://oddo-hackathon-pied.vercel.app) and uses a JavaScript + Prisma + Next.js stack. And here is the demo video: [Click here](https://drive.google.com/file/d/1llmVyhT2Tzix841EKJA5y-EqIiAJBu7E/view?usp=drive_link)
 
 ## Table of Contents
 1. Overview
@@ -29,16 +29,15 @@ A modern web application built for the Oddo Hackathon, leveraging a modular, sca
 ---
 
 ## 1. Overview
-Oddo Hackathon is designed as a rapid prototype / production-ready foundation for a data-driven web application. It emphasizes:
-- Clean separation of concerns
-- Extensible data modeling (via Prisma)
-- Modern React (likely App Router if Next.js ≥13)
-- Fast iteration with component-driven development
+Oddo x Amalthea IIT Gandhinagar Hackathon, we have developed OneFlow -Plan to Bill in One Place (Problem Statement-1) web application to manage projects and teams. It emphasizes:
+- Clean separation of concerns (Role based Access: Admin, Project Manager, employee)
+- Extensible data modeling (via Prisma) and storage (Postgres)
+- Next.JS App Routing
+- Fast iteration with component-driven development (as it was 24 hour hackathon)
 
 ## 2. Live Demo
 - Google Drive Link (Demo Video): https://drive.google.com/file/d/1llmVyhT2Tzix841EKJA5y-EqIiAJBu7E/view?usp=drive_link
 - Production URL: https://oddo-hackathon-pied.vercel.app  
-(Replace or add staging/previews if configured.)
 
 ## 3. Core Features (Adjust to actual functionality)
 - User onboarding & bulk import (via `sample-users.csv`)
@@ -63,9 +62,9 @@ The application follows a layered approach:
 ## 5. Tech Stack
 - Framework: Next.js
 - Language: JavaScript (ES Modules)
-- Styling: (Assumed) Tailwind CSS or PostCSS pipeline (`postcss.config.mjs`)
+- Styling: Tailwind CSS or PostCSS pipeline (`postcss.config.mjs`)
 - ORM: Prisma
-- Database: (Assumed) PostgreSQL (adapt if using MySQL/SQLite/etc.)
+- Database: PostgreSQL
 - Package Manager: pnpm (`pnpm-lock.yaml`)
 - Build & Linting: Next.js + ESLint (`eslint.config.mjs`)
 - Deployment: Vercel
@@ -235,10 +234,10 @@ pnpm prisma migrate deploy
 ```
 
 ## 14. Security Considerations
-- Validate all user input server-side.
-- Escape rendered dynamic content.
-- Use HTTPS everywhere (Vercel default).
-- Rotate secrets periodically.
+- Validated all user input server-side.
+- Escaped rendered dynamic content.
+- Used HTTPS everywhere (Vercel default).
+- To rotate secrets periodically.
 - Principle of least privilege on database user.
 
 ## 15. Performance & Optimization
@@ -265,6 +264,7 @@ Potential additions:
 ### Guidelines
 - Fork & branch naming: `feat/`, `fix/`, `chore/`
 - Write clear commit messages
+- add .env file in root (See Appendix C for env variables)
 - Keep PRs focused & small
 - Provide tests where applicable
 
@@ -303,8 +303,8 @@ MIT License © YEAR AUTHOR(S)
 
 ---
 
-## Appendix A: Suggested Enhancements
-- Add `docs/` folder for deeper architectural specs
+## Appendix A
+- To add `docs/` folder for deeper architectural specs
 - Set up automated accessibility audits (axe / Lighthouse CI)
 - Implement spinner/error states for asynchronous UI flows
 
@@ -315,9 +315,18 @@ jane.doe@example.com,Jane Doe
 john.smith@example.com,John Smith
 ```
 
+## Appendix C: env variables
+```
+DATABASE_URL=...
+JWT_SECRET=...
+
+EMAIL_USER=...
+EMAIL_APP_PASSWORD=...
+
+OCR_SPACE_API_KEY=...
+```
+- have all these values in your .env file at root of the project for local setup and contribuations
+
 Ensure validation before import.
 
 ---
-
-## Final Notes
-This documentation is a structured template based on observed repository layout. Update sections (Features, Schema, Scripts, Tests) with exact implementation details as the project evolves.
